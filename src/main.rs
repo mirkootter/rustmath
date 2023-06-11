@@ -5,28 +5,11 @@ mod mathlist;
 mod parser;
 
 fn main() {
-    let list = {
-        let log = {
-            let mut builder = mathlist::Builder::default();
-            builder.add_ord('l');
-            builder.add_ord('o');
-            builder.add_ord('g');
-
-            builder.finish()
-        };
-
-        let mut builder = mathlist::Builder::default();
-        builder.add_op('∫');
-        builder.add_op('∑');
-        builder.add_ord('𝑥');
-        builder.add_bin('+');
-        builder.add_list(mathlist::AtomType::Op, log);
-        builder.add_ord('𝑦');
-        builder.add_rel('=');
-        builder.add_ord('2');
-
-        builder.finish()
-    };
+    let list: mathlist::MathList<backend::Glyph> =
+        parser::Node::parse("\\int\\sum x+\\mathop{log}y=2")
+            .unwrap()
+            .to_mathlist()
+            .unwrap();
 
     let mut pixmap = tiny_skia::Pixmap::new(512, 512).unwrap();
     let mut renderer = backend::Renderer::new(&mut pixmap);
