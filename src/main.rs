@@ -2,15 +2,26 @@ mod layout;
 mod mathlist;
 
 fn main() {
-
     let list = {
+        let log = {
+            let mut builder = mathlist::Builder::default();
+            builder.add_ord('l');
+            builder.add_ord('o');
+            builder.add_ord('g');
+
+            builder.finish()
+        };
+
         let mut builder = mathlist::Builder::default();
+        builder.add_op('∫');
+        builder.add_op('∑');
         builder.add_ord('𝑥');
         builder.add_bin('+');
+        builder.add_list(mathlist::AtomType::Op, log);
         builder.add_ord('𝑦');
         builder.add_rel('=');
         builder.add_ord('2');
-        
+
         builder.finish()
     };
 

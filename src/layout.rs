@@ -49,10 +49,9 @@ impl Glyph {
         Some(value as f32 * scale)
     }
 
-    pub fn new(f: &Face, ch: char, size: f32) -> Option<Self> {
+    pub fn new_from_id(f: &Face, id: ttf_parser::GlyphId, size: f32) -> Option<Self> {
         let scale = size / 1000.0;
 
-        let id = f.glyph_index(ch)?;
         let advance = f.glyph_hor_advance(id)? as f32 * scale;
 
         let mut outline_builder = OutlineBuilder::default();
@@ -69,6 +68,11 @@ impl Glyph {
             italic_correction,
             path,
         })
+    }
+
+    pub fn new(f: &Face, ch: char, size: f32) -> Option<Self> {
+        let id = f.glyph_index(ch)?;
+        Self::new_from_id(f, id, size)
     }
 
     pub fn render(&self, pixmap: &mut tiny_skia::Pixmap, x0: f32, y0: f32) {

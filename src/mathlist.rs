@@ -114,8 +114,7 @@ impl Builder {
         MathList(self.list)
     }
 
-    pub fn add_symbol(&mut self, atom_type: AtomType, ch: char) {
-        let nucleus = Field::Symbol(ch);
+    fn add_atom(&mut self, atom_type: AtomType, nucleus: Field) {
         let atom = Atom {
             atom_type,
             nucleus,
@@ -126,8 +125,22 @@ impl Builder {
         self.list.push(Node::Atom(atom));
     }
 
+    pub fn add_symbol(&mut self, atom_type: AtomType, ch: char) {
+        let nucleus = Field::Symbol(ch);
+        self.add_atom(atom_type, nucleus);
+    }
+
+    pub fn add_list(&mut self, atom_type: AtomType, list: MathList) {
+        let nucleus = Field::MathList(list);
+        self.add_atom(atom_type, nucleus);
+    }
+
     pub fn add_bin(&mut self, ch: char) {
         self.add_symbol(AtomType::Bin, ch);
+    }
+
+    pub fn add_op(&mut self, ch: char) {
+        self.add_symbol(AtomType::Op, ch);
     }
 
     pub fn add_ord(&mut self, ch: char) {
@@ -171,6 +184,15 @@ impl MathList {
         // Translate the nucleus for all atoms which have not been translated yet
         for node in &mut list {
             if let Node::Atom(atom) = node {
+                match &atom.atom_type {
+                    AtomType::Op => {
+                        if style > Style::Text {
+                            atom.nucleus.grow_symbol_if_possible(face, size);
+                        }
+                    }
+                    _ => {}
+                }
+
                 // TODO: Implement Rule 14 from the TeX-book
                 // This means dealing with kerning, ligatures
 
@@ -238,6 +260,33 @@ impl Field {
             }
             _ => {} // Nothing to do
         }
+    }
+
+    /// If the field contains a single symbol, try to grow it once
+    /// This is used in display mode to enlarge operations like \sum
+    fn grow_symbol_if_possible(&mut self, face: &ttf_parser::Face, size: f32) {
+        let ch = match self {
+            Field::Symbol(ch) => *ch,
+            _ => return,
+        };
+
+        let mut try_grow = || -> Option<()> {
+            let glyph_id = face.glyph_index(ch)?;
+            let construction = face
+                .tables()
+                .math?
+                .variants?
+                .vertical_constructions
+                .get(glyph_id)?;
+            
+            let glyph_id = construction.variants.get(1)?.variant_glyph;
+            let glyph = crate::layout::Glyph::new_from_id(face, glyph_id, size)?;
+            let node = crate::layout::Node::Glyph { glyph, dx: 0.0, dy: 0.0 };
+            *self = Field::Layout(node);
+            None
+        };
+
+        try_grow();
     }
 
     fn take_translation(&mut self) -> Option<crate::layout::Node> {
