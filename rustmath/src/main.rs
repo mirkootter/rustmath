@@ -1,8 +1,4 @@
-mod backend;
-mod common;
-mod layout;
-mod mathlist;
-mod parser;
+use rustmath::*;
 
 fn main() {
     let list: mathlist::MathList<backend::Glyph> =
