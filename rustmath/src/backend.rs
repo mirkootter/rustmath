@@ -146,22 +146,26 @@ impl<'a> common::FontBackend for FontBackend<'a> {
     }
 }
 
-pub struct Renderer<'a> {
-    pixmap: &'a mut tiny_skia::Pixmap,
-    backend: FontBackend<'static>,
-}
-
-impl<'a> Renderer<'a> {
-    pub fn new(pixmap: &'a mut tiny_skia::Pixmap) -> Self {
+impl Default for FontBackend<'static> {
+    fn default() -> Self {
         let face =
             ttf_parser::Face::parse(include_bytes!("../data/NewCMMath-Regular.otf"), 0).unwrap();
         let font = Font { face };
-        let backend = FontBackend { font };
+        Self { font }
+    }
+}
 
+pub struct Renderer<'a> {
+    pixmap: &'a mut tiny_skia::Pixmap,
+    backend: FontBackend<'a>,
+}
+
+impl<'a> Renderer<'a> {
+    pub fn new(pixmap: &'a mut tiny_skia::Pixmap, backend: FontBackend<'a>) -> Self {
         Renderer { pixmap, backend }
     }
 
-    pub fn font_backend(&self) -> &FontBackend<'static> {
+    pub fn font_backend(&self) -> &FontBackend<'a> {
         &self.backend
     }
 }
