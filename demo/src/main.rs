@@ -9,8 +9,19 @@ fn main() {
 
 fn App(cx: Scope) -> Element {
     cx.render(rsx! {
+        section {
+            class: "app",
+            h1 {
+                "Demo"
+            }
+            input {
+                "type": "text",
+                placeholder: "Enter math code here"
+            }
+        }
         div {
-            "Hello, world!"
+            class: "output",
+            "Some output"
         }
     })
 }
