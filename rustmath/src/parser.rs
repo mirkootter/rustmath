@@ -1,3 +1,5 @@
+mod char_classification;
+
 use nom::{
     bytes::complete::take_while1,
     character::complete,
@@ -98,23 +100,19 @@ impl<'a, Glyph: common::Glyph, Input: Iterator<Item = &'a Node<'a>>> Converter<'
     }
 
     fn add_char(&mut self, ch: char) {
-        let (ch, atom_type) = match ch {
-            '∑' => ('∑', AtomType::Op),
-            '∫' => ('∫', AtomType::Op),
-            '+' | '-' | '*' | '∧' | '∨' | '∩' | '∪' => (ch, AtomType::Bin),
-            '=' | '<' | '>' | '∈' | '∉' | '≠' | '≤' | '≥' => (ch, AtomType::Rel),
-            'h' => ('ℏ', AtomType::Ord),
-            'A'..='Z' => (
-                char::from_u32(ch as u32 + '𝐴' as u32 - 'A' as u32).unwrap(),
-                AtomType::Ord,
-            ),
-            'a'..='z' => (
-                char::from_u32(ch as u32 + '𝑎' as u32 - 'a' as u32).unwrap(),
-                AtomType::Ord,
-            ),
-            _ => (ch, AtomType::Ord),
+        let atom_type = match char_classification::CharClassification::classify(ch).to_atom_type() {
+            Some(atom_type) => atom_type,
+            None => return,
         };
-        // todo: char classification. For now, just assume ord
+
+        // HACK: Map chars to italic
+        let ch = match ch {
+            'h' => 'ℎ',
+            'A'..='Z' => char::from_u32(ch as u32 + '𝐴' as u32 - 'A' as u32).unwrap(),
+            'a'..='z' => char::from_u32(ch as u32 + '𝑎' as u32 - 'a' as u32).unwrap(),
+            _ => ch,
+        };
+
         self.output.add_symbol(atom_type, ch);
     }
 
