@@ -11,4 +11,5 @@ default_members = [
 
 members = [
     "demo",
+    "build-test",
 ]
