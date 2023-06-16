@@ -100,17 +100,19 @@ impl<'a, Glyph: common::Glyph, Input: Iterator<Item = &'a Node<'a>>> Converter<'
     }
 
     fn add_char(&mut self, ch: char) {
-        let atom_type = match char_classification::CharClassification::classify(ch).to_atom_type() {
-            Some(atom_type) => atom_type,
-            None => return,
-        };
-
-        // HACK: Map chars to italic
+        // HACK: Map chars to their math equivalent
         let ch = match ch {
+            '-' => '−',
+            '*' => '∗',
             'h' => 'ℎ',
             'A'..='Z' => char::from_u32(ch as u32 + '𝐴' as u32 - 'A' as u32).unwrap(),
             'a'..='z' => char::from_u32(ch as u32 + '𝑎' as u32 - 'a' as u32).unwrap(),
             _ => ch,
+        };
+
+        let atom_type = match char_classification::CharClassification::classify(ch).to_atom_type() {
+            Some(atom_type) => atom_type,
+            None => return,
         };
 
         self.output.add_symbol(atom_type, ch);
