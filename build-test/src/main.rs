@@ -1,7 +1,7 @@
 use nom::IResult;
 
 #[derive(Clone, Copy, Debug)]
-enum Selector {
+pub enum Selector {
     CodePoint(char),
     Range(char, char),
 }
@@ -22,8 +22,8 @@ impl Selector {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-enum MathClass {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MathClass {
     Normal,
     Alphabetic,
     Binary,
@@ -39,6 +39,7 @@ enum MathClass {
     Unary,
     Vary,
     Special,
+    Ignore,
 }
 
 impl MathClass {
@@ -80,6 +81,7 @@ impl MathClass {
             MathClass::Unary => "Unary",
             MathClass::Vary => "Vary",
             MathClass::Special => "Special",
+            MathClass::Ignore => "Ignore",
         }
     }
 }
@@ -133,60 +135,89 @@ impl MathListEntry {
     }
 }
 
-#[derive(Default)]
-struct CharacterClassfication(Vec<String>);
+mod data {
+    use std::collections::BTreeMap;
 
-impl CharacterClassfication {
-    pub fn add_ignore(&mut self, last: char) {
-        self.0.push(format!(
-            "    ('{}' as u32 + 1, CharClassification::Ignore),",
-            last.escape_debug()
-        ));
+    pub struct Data {
+        m: rangemap::RangeInclusiveMap<u32, super::MathClass>,
+        commands: BTreeMap<String, char>,
     }
 
-    pub fn add_char(&mut self, ch: char, classfication: &str) {
-        self.0.push(format!(
-            "    ('{}' as u32, CharClassification::{}),",
-            ch.escape_debug(),
-            classfication
-        ));
-    }
-
-    pub fn print(&self) {
-        println!("use super::CharClassification;");
-        println!();
-
-        println!(
-            "pub const CHAR_CLASSIFICATION: [(u32, CharClassification); {}] = [",
-            self.0.len() + 1
-        );
-        println!("    (0, CharClassification::Ignore),");
-        for line in &self.0 {
-            println!("{}", line);
+    impl Data {
+        pub fn new() -> Self {
+            let mut result = Data {
+                m: Default::default(),
+                commands: Default::default(),
+            };
+            result.m.insert(0..=u32::MAX, super::MathClass::Ignore);
+            result
         }
-        println!("];");
+
+        fn add_char_range(
+            &mut self,
+            range: std::ops::RangeInclusive<char>,
+            mathclass: super::MathClass,
+        ) {
+            let start = *range.start() as u32;
+            let end = *range.end() as u32;
+            self.m.insert(start..=end, mathclass);
+        }
+
+        pub fn add_range(&mut self, sel: super::Selector, mathclass: super::MathClass) {
+            match sel {
+                crate::Selector::CodePoint(ch) => self.add_char_range(ch..=ch, mathclass),
+                crate::Selector::Range(a, b) => self.add_char_range(a..=b, mathclass),
+            }
+        }
+
+        pub fn print_classification(&self) {
+            println!(
+                "pub const CHAR_CLASSIFICATION: [(u32, CharClassification); {}] = [",
+                self.m.len()
+            );
+
+            for (range, &mathclass) in self.m.iter() {
+                let start = *range.start();
+
+                if start == 0 {
+                    println!("    (0, CharClassification::{}),", mathclass.classify());
+                } else if mathclass == super::MathClass::Ignore {
+                    println!(
+                        "    ('{}' as u32 + 1, CharClassification::{}),",
+                        char::from_u32(start - 1).unwrap().escape_debug(),
+                        mathclass.classify()
+                    );
+                } else {
+                    println!(
+                        "    ('{}' as u32, CharClassification::{}),",
+                        char::from_u32(start).unwrap().escape_debug(),
+                        mathclass.classify()
+                    );
+                }
+            }
+
+            println!("];");
+        }
     }
 }
 
-fn main() {
-    let mut entries = include_str!("../../rustmath/data/MathClass-15.txt")
+fn parse_math_class_txt(d: &mut data::Data) {
+    let entries = include_str!("../../rustmath/data/MathClass-15.txt")
         .lines()
         .filter(|line| !line.is_empty() && !line.starts_with("#"))
         .map(MathListEntry::parse);
 
-    let mut last = None::<char>;
-    let mut cc = CharacterClassfication::default();
-    while let Some(entry) = entries.next() {
-        let start = entry.selector.start();
-        if let Some(last) = last {
-            assert!(start >= last);
-            if start as u32 > last as u32 + 1 {
-                cc.add_ignore(last);
-            }
-        }
-
-        cc.add_char(start, entry.math_class.classify());
-        last = Some(entry.selector.stop());
+    for entry in entries {
+        d.add_range(entry.selector, entry.math_class);
     }
-    cc.print();
+}
+
+fn main() {
+    let mut d = data::Data::new();
+    parse_math_class_txt(&mut d);
+
+    println!("use super::CharClassification;");
+    println!();
+
+    d.print_classification();
 }

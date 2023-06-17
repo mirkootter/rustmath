@@ -161,6 +161,7 @@ name = "build-test"
 version = "0.1.0"
 dependencies = [
  "nom",
+ "rangemap",
 ]
 
 [[package]]
@@ -1105,6 +1106,12 @@ checksum = "1b9ab9c7eadfd8df19006f1cf1a4aed13540ed5cbc047010ece5826e10825488"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "rangemap"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b9283c6b06096b47afc7109834fdedab891175bb5241ee5d4f7d2546549f263"
 
 [[package]]
 name = "redox_syscall"
