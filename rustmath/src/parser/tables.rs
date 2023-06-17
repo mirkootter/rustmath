@@ -46,3 +46,8 @@ impl CharClassification {
         }
     }
 }
+
+pub fn command_to_char(cmd: &str) -> Option<char> {
+    let lookup = generated::CHAR_COMMANDS.binary_search_by_key(&cmd, |(cmd, _)| cmd);
+    lookup.map(|idx| generated::CHAR_COMMANDS[idx].1).ok()
+}

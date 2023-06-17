@@ -125,9 +125,11 @@ impl<'a, Glyph: common::Glyph, Input: Iterator<Item = &'a Node<'a>>> Converter<'
     }
 
     fn process_cmd(&mut self, cmd: &str) -> Option<()> {
+        if let Some(ch) = tables::command_to_char(cmd) {
+            self.add_char(ch);
+            return Some(());
+        }
         match cmd {
-            "int" => self.output.add_op('∫'),
-            "sum" => self.output.add_op('∑'),
             "mathop" => match self.next_non_white()? {
                 Node::Char(ch) => self.output.add_op(*ch),
                 Node::Command(_) => return None,
