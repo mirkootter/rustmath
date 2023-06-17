@@ -1,4 +1,4 @@
-mod char_classification;
+mod tables;
 
 use nom::{
     bytes::complete::take_while1,
@@ -110,7 +110,7 @@ impl<'a, Glyph: common::Glyph, Input: Iterator<Item = &'a Node<'a>>> Converter<'
             _ => ch,
         };
 
-        let atom_type = match char_classification::CharClassification::classify(ch).to_atom_type() {
+        let atom_type = match tables::CharClassification::classify(ch).to_atom_type() {
             Some(atom_type) => atom_type,
             None => return,
         };
