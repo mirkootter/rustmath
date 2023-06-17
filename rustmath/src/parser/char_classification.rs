@@ -16,8 +16,6 @@ pub enum CharClassification {
     Punct,
     Relation,
     Space,
-    Unary,
-    Vary,
     Special,
     Ignore,
 }
@@ -34,7 +32,6 @@ impl CharClassification {
             CharClassification::Normal
             | CharClassification::Alphabetic
             | CharClassification::Diacritic
-            | CharClassification::Unary
             | CharClassification::Special => Some(AtomType::Ord),
             CharClassification::Binary => Some(AtomType::Bin),
             CharClassification::Closing => Some(AtomType::Close),
@@ -45,7 +42,6 @@ impl CharClassification {
             CharClassification::Punct => Some(AtomType::Punct),
             CharClassification::Relation => Some(AtomType::Rel),
             CharClassification::Space => None,
-            CharClassification::Vary => Some(AtomType::Bin),
             CharClassification::Ignore => None,
         }
     }

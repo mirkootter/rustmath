@@ -64,6 +64,30 @@ impl MathClass {
         }
     }
 
+    pub fn from_command(cmd: &str) -> Self {
+        match cmd {
+            "mathclose" => Self::Closing,
+            "mathord" => Self::Normal,
+            "mathpunct" => Self::Punct,
+            "mathrel" => Self::Relation,
+            "mathopen" => Self::Opening,
+            "mathfence" => Self::Fence,
+            "mathalpha" => Self::Alphabetic,
+            "mathaccent" => Self::Diacritic,
+            "mathaccentwide" => Self::Diacritic,
+            "mathbotaccent" => Self::Diacritic,
+            "mathbotaccentwide" => Self::Diacritic,
+            "mathaccentoverlay" => Self::Diacritic,
+            "mathbin" => Self::Binary,
+            "mathop" => Self::Large,
+            "mathover" | "mathunder" => Self::Diacritic,
+            _ => {
+                eprintln!("oje {:?}", cmd);
+                unreachable!()
+            }
+        }
+    }
+
     pub fn classify(self) -> &'static str {
         match self {
             MathClass::Normal => "Normal",
@@ -135,6 +159,78 @@ impl MathListEntry {
     }
 }
 
+struct MathTableRow<'a> {
+    ch: char,
+    command: &'a str,
+    math_class: MathClass,
+    #[allow(dead_code)]
+    descr: &'a str,
+}
+
+impl<'a> MathTableRow<'a> {
+    pub fn parse(src: &'a str) -> Self {
+        let parse_code_point = nom::combinator::map(nom::character::complete::hex_digit1, |s| {
+            u32::from_str_radix(s, 16)
+                .map(char::from_u32)
+                .unwrap()
+                .unwrap()
+        });
+
+        let parse_code_point = nom::sequence::delimited(
+            nom::bytes::complete::tag("{\""),
+            parse_code_point,
+            nom::bytes::complete::tag("}"),
+        );
+
+        let parse_command = || {
+            nom::sequence::delimited(
+                nom::bytes::complete::tag("\\"),
+                nom::character::complete::alpha1,
+                nom::character::complete::space0,
+            )
+        };
+
+        let parse_classify =
+            nom::combinator::map(parse_command(), |cmd| MathClass::from_command(cmd));
+
+        let parse_main_command = nom::sequence::delimited(
+            nom::bytes::complete::tag("{"),
+            parse_command(),
+            nom::bytes::complete::tag("}"),
+        );
+
+        let parse_classify = nom::sequence::delimited(
+            nom::bytes::complete::tag("{"),
+            parse_classify,
+            nom::bytes::complete::tag("}"),
+        );
+
+        let parse_text = nom::sequence::delimited(
+            nom::bytes::complete::tag("{"),
+            nom::bytes::complete::take_while1(|ch| ch != '}'),
+            nom::bytes::complete::tag("}"),
+        );
+
+        let mut parser = nom::sequence::tuple((
+            nom::bytes::complete::tag("\\UnicodeMathSymbol"),
+            parse_code_point,
+            parse_main_command,
+            parse_classify,
+            parse_text,
+        ));
+
+        let parse_result: IResult<_, _> = parser(src);
+        let (_, ch, command, math_class, descr) = parse_result.unwrap().1;
+
+        Self {
+            ch,
+            command,
+            math_class,
+            descr,
+        }
+    }
+}
+
 mod data {
     use std::collections::BTreeMap;
 
@@ -170,9 +266,16 @@ mod data {
             }
         }
 
+        pub fn add_command(&mut self, cmd: String, ch: char, math_class: super::MathClass) {
+            self.commands.insert(cmd, ch);
+
+            let ch = ch as u32;
+            self.m.insert(ch..=ch, math_class);
+        }
+
         pub fn print_classification(&self) {
             println!(
-                "pub const CHAR_CLASSIFICATION: [(u32, CharClassification); {}] = [",
+                "pub static CHAR_CLASSIFICATION: [(u32, CharClassification); {}] = [",
                 self.m.len()
             );
 
@@ -198,6 +301,17 @@ mod data {
 
             println!("];");
         }
+
+        pub fn print_commands(&self) {
+            println!(
+                "pub static CHAR_COMMANDS: [(&'static str, char); {}] = [",
+                self.commands.len()
+            );
+            for (cmd, ch) in &self.commands {
+                println!("    (\"{}\", '{}'),", cmd.escape_debug(), ch.escape_debug());
+            }
+            println!("];");
+        }
     }
 }
 
@@ -212,12 +326,26 @@ fn parse_math_class_txt(d: &mut data::Data) {
     }
 }
 
+fn parse_math_table_tex(d: &mut data::Data) {
+    let entries = include_str!("../../rustmath/data/unicode-math-table.tex")
+        .lines()
+        .filter(|line| !line.is_empty() && !line.starts_with("%"))
+        .map(MathTableRow::parse);
+
+    for row in entries {
+        d.add_command(row.command.to_owned(), row.ch, row.math_class);
+    }
+}
+
 fn main() {
     let mut d = data::Data::new();
     parse_math_class_txt(&mut d);
+    parse_math_table_tex(&mut d);
 
     println!("use super::CharClassification;");
     println!();
 
     d.print_classification();
+    println!();
+    d.print_commands();
 }
