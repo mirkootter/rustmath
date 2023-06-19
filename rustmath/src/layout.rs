@@ -62,6 +62,33 @@ impl<Glyph: common::Glyph> Node<Glyph> {
             advance,
         }
     }
+
+    pub fn new_vbox(children: Vec<(f32, Self)>) -> Self {
+        let mut height = 0f32;
+        let mut depth = 0f32;
+        let mut advance = 0f32;
+
+        let mut first = true;
+        for (hshift, node) in &children {
+            if first {
+                first = false;
+                depth = node.depth();
+            } else {
+                height += node.depth();
+            }
+
+            advance = advance.max(node.advance() + hshift);
+
+            height += node.height();
+        }
+
+        Node::VBox {
+            children,
+            height,
+            depth,
+            advance,
+        }
+    }
 }
 
 impl<Glyph: common::Glyph> Node<Glyph> {
