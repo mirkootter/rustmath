@@ -224,13 +224,13 @@ impl<Glyph: common::Glyph> MathList<Glyph> {
                     );
 
                     if spacing > 0.0 {
-                        nodes.push(crate::layout::Node::Glue(spacing));
+                        nodes.push((0.0, crate::layout::Node::Glue(spacing)));
                     }
                 }
 
                 previous_atom_type = Some(atom_type.clone());
                 if let Some(atom) = atom.nucleus.take_translation() {
-                    nodes.push(atom);
+                    nodes.push((0.0, atom));
                 }
             }
         }
@@ -256,11 +256,7 @@ impl<Glyph: common::Glyph> Field<Glyph> {
                     backend.get_font(Family::Italic).get_glyph(*ch, size)
                 };
                 let glyph = glyph.unwrap();
-                let node = crate::layout::Node::Glyph {
-                    glyph,
-                    dx: 0.0,
-                    dy: 0.0,
-                };
+                let node = crate::layout::Node::Glyph { glyph };
                 *self = Field::Layout(node);
             }
             Field::MathList(list) => {

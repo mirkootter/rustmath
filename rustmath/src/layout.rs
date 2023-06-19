@@ -4,11 +4,9 @@ pub enum Node<Glyph: common::Glyph> {
     Glue(f32),
     Glyph {
         glyph: Glyph,
-        dx: f32,
-        dy: f32,
     },
     HBox {
-        children: Vec<Self>,
+        children: Vec<(f32, Self)>,
         height: f32,
         depth: f32,
         advance: f32,
@@ -19,7 +17,7 @@ impl<Glyph: common::Glyph> Node<Glyph> {
     pub fn height(&self) -> f32 {
         match self {
             Node::Glue(_) => 0.0,
-            Node::Glyph { glyph, dy, .. } => (glyph.height() + dy).max(0.0),
+            Node::Glyph { glyph } => glyph.height(),
             Node::HBox { height, .. } => *height,
         }
     }
@@ -27,7 +25,7 @@ impl<Glyph: common::Glyph> Node<Glyph> {
     pub fn depth(&self) -> f32 {
         match self {
             Node::Glue(_) => 0.0,
-            Node::Glyph { glyph, dy, .. } => (glyph.depth() - dy).max(0.0),
+            Node::Glyph { glyph } => glyph.depth(),
             Node::HBox { depth, .. } => *depth,
         }
     }
@@ -35,19 +33,19 @@ impl<Glyph: common::Glyph> Node<Glyph> {
     pub fn advance(&self) -> f32 {
         match self {
             Node::Glue(w) => *w,
-            Node::Glyph { glyph, dx, .. } => glyph.advance() + dx,
+            Node::Glyph { glyph } => glyph.advance(),
             Node::HBox { advance, .. } => *advance,
         }
     }
 
-    pub fn new_hbox(children: Vec<Self>) -> Self {
+    pub fn new_hbox(children: Vec<(f32, Self)>) -> Self {
         let mut height = 0f32;
         let mut depth = 0f32;
         let mut advance = 0f32;
 
-        for node in &children {
-            height = height.max(node.height());
-            depth = depth.max(node.depth());
+        for (vshift, node) in &children {
+            height = height.max(node.height() + vshift);
+            depth = depth.max(node.depth() - vshift);
             advance += node.advance()
         }
 
@@ -69,12 +67,12 @@ impl<Glyph: common::Glyph> Node<Glyph> {
     ) {
         match self {
             Node::Glue(_) => {}
-            Node::Glyph { glyph, dx, dy } => renderer.render_glyph(glyph, x0 + dx, y0 - dy),
+            Node::Glyph { glyph } => renderer.render_glyph(glyph, x0, y0),
             Node::HBox { children, .. } => {
                 let mut x = x0;
 
-                for child in children {
-                    child.render(renderer, x, y0);
+                for (vshift, child) in children {
+                    child.render(renderer, x, y0 - vshift);
                     x += child.advance();
                 }
             }
