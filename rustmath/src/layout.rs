@@ -11,6 +11,12 @@ pub enum Node<Glyph: common::Glyph> {
         depth: f32,
         advance: f32,
     },
+    VBox {
+        children: Vec<(f32, Self)>,
+        height: f32,
+        depth: f32,
+        advance: f32,
+    },
 }
 
 impl<Glyph: common::Glyph> Node<Glyph> {
@@ -18,7 +24,7 @@ impl<Glyph: common::Glyph> Node<Glyph> {
         match self {
             Node::Glue(_) => 0.0,
             Node::Glyph { glyph } => glyph.height(),
-            Node::HBox { height, .. } => *height,
+            Node::HBox { height, .. } | Node::VBox { height, .. } => *height,
         }
     }
 
@@ -26,7 +32,7 @@ impl<Glyph: common::Glyph> Node<Glyph> {
         match self {
             Node::Glue(_) => 0.0,
             Node::Glyph { glyph } => glyph.depth(),
-            Node::HBox { depth, .. } => *depth,
+            Node::HBox { depth, .. } | Node::VBox { depth, .. } => *depth,
         }
     }
 
@@ -34,7 +40,7 @@ impl<Glyph: common::Glyph> Node<Glyph> {
         match self {
             Node::Glue(w) => *w,
             Node::Glyph { glyph } => glyph.advance(),
-            Node::HBox { advance, .. } => *advance,
+            Node::HBox { advance, .. } | Node::VBox { advance, .. } => *advance,
         }
     }
 
@@ -74,6 +80,20 @@ impl<Glyph: common::Glyph> Node<Glyph> {
                 for (vshift, child) in children {
                     child.render(renderer, x, y0 - vshift);
                     x += child.advance();
+                }
+            }
+            Node::VBox { children, .. } => {
+                let mut y = y0;
+                let mut first = true;
+
+                for (hshift, child) in children {
+                    if first {
+                        first = false;
+                    } else {
+                        y -= child.depth();
+                    }
+                    child.render(renderer, x0 + hshift, y);
+                    y -= child.height();
                 }
             }
         }
