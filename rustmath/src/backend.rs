@@ -119,6 +119,9 @@ impl<'a> common::Font<FontBackend<'a>> for Font<'a> {
         ch: char,
         size: f32,
     ) -> Option<<FontBackend<'a> as common::FontBackend>::Glyph> {
+        // TODO: Do not just get the second size, but the smallest
+        // glyph which is larger than `display_operator_min_height`
+
         let glyph_id = self.face.glyph_index(ch)?;
         let construction = self
             .face
