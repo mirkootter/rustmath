@@ -32,16 +32,26 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
             _ => ch,
         };
 
-        let (ch, atom_type) = match tables::CharClassification::classify(ch).to_atom_type() {
-            Some(atom_type) => (ch, atom_type),
-            None => ('?', AtomType::Ord), // TODO: Error handling
+        let (symbol, atom_type) = match tables::CharClassification::classify(ch).to_atom_type() {
+            Some(atom_type) => (Field::Symbol(Color::Normal, ch), atom_type),
+            None => (Field::Symbol(Color::Error, '?'), AtomType::Ord), // TODO: Default-Char for the font
         };
 
-        (atom_type, Field::Symbol(Color::Normal, ch))
+        (atom_type, symbol)
     }
 
-    fn make_error_field(_text: &str) -> Field<Glyph> {
-        todo!()
+    fn make_error_field(text: &str) -> Field<Glyph> {
+        match text.len() {
+            0 => Field::Empty,
+            1 => Field::Symbol(Color::Error, text.chars().next().unwrap()),
+            _ => {
+                let mut builder = crate::mathlist::Builder::default();
+                for ch in text.chars() {
+                    builder.add_symbol(ch, Color::Error);
+                }
+                Field::MathList(builder.finish())
+            }
+        }
     }
 
     fn handle_command<'a>(

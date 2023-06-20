@@ -122,6 +122,17 @@ impl<Glyph: common::Glyph> Builder<Glyph> {
     pub fn add_atom(&mut self, atom: Atom<Glyph>) {
         self.list.push(Node::Atom(atom));
     }
+
+    pub fn add_symbol(&mut self, ch: char, color: Color) {
+        let nucleus = Field::Symbol(color, ch);
+        let atom = Atom {
+            atom_type: AtomType::Ord,
+            nucleus,
+            subscript: Field::Empty,
+            superscript: Field::Empty,
+        };
+        self.add_atom(atom);
+    }
 }
 
 impl<Glyph: common::Glyph> MathList<Glyph> {
