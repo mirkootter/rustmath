@@ -1,105 +1,24 @@
-mod tables;
-
+use crate::mathlist::{Atom, AtomType, Field, MathList};
 use nom::{
-    bytes::complete::take_while1,
     character::complete,
-    multi::many0,
     sequence::{delimited, preceded},
     IResult, Parser,
 };
+use std::marker::PhantomData;
+mod tables;
 
-use crate::{
-    common,
-    mathlist::{self, AtomType, MathList},
-};
-
-#[derive(Clone)]
-pub enum Node<'a> {
-    Char(char),
-    Command(&'a str),
-    Group(Vec<Node<'a>>),
-    Whitespace,
+struct ParserImp<Glyph: crate::common::Glyph> {
+    m: PhantomData<Glyph>,
 }
 
-fn parse_node<'a>(src: &'a str) -> IResult<&'a str, Node<'a>> {
-    let parse_char = complete::none_of("}").map(Node::Char);
-    let parse_command = preceded(complete::char('\\'), complete::alpha1).map(Node::Command);
-    let parse_whitespace = take_while1(|c: char| c.is_whitespace()).map(|_| Node::Whitespace);
-
-    let parse_group =
-        delimited(complete::char('{'), many0(parse_node), complete::char('}')).map(Node::Group);
-    let mut parser = nom::branch::alt((parse_whitespace, parse_group, parse_command, parse_char));
-
-    parser(src)
-}
-
-impl<'a> Node<'a> {
-    pub fn parse(src: &'a str) -> Option<Self> {
-        let mut parser = many0(parse_node);
-        let (_, mut nodes) = parser.parse(src).ok()?;
-
-        if nodes.len() == 1 {
-            nodes.drain(..).next()
-        } else {
-            Some(Node::Group(nodes))
-        }
+impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
+    fn whitespace(src: &str) -> IResult<&str, ()> {
+        use nom::InputTakeAtPosition;
+        let (src, _) = src.split_at_position_complete(|ch| !ch.is_whitespace())?;
+        Ok((src, ()))
     }
 
-    pub fn to_mathlist<G: common::Glyph>(&self) -> Option<MathList<G>> {
-        let nodes = [self];
-        Converter::convert(nodes.into_iter())
-    }
-}
-
-struct Converter<'a, Glyph: common::Glyph, Input: Iterator<Item = &'a Node<'a>>> {
-    input: Input,
-    output: mathlist::Builder<Glyph>,
-}
-
-impl<'a, Glyph: common::Glyph, Input: Iterator<Item = &'a Node<'a>>> Converter<'a, Glyph, Input> {
-    fn new(input: Input) -> Self {
-        Self {
-            input,
-            output: Default::default(),
-        }
-    }
-
-    fn next_non_white(&mut self) -> Option<&'a Node<'a>> {
-        loop {
-            let node = self.input.next()?;
-            if !matches!(node, Node::Whitespace) {
-                return Some(node);
-            }
-        }
-    }
-
-    pub fn convert(input: Input) -> Option<MathList<Glyph>> {
-        let mut converter = Self::new(input);
-        loop {
-            if !converter.iterate()? {
-                break;
-            }
-        }
-        Some(converter.output.finish())
-    }
-
-    fn iterate(&mut self) -> Option<bool> {
-        let node = match self.next_non_white() {
-            Some(node) => node,
-            None => return Some(false),
-        };
-
-        match node {
-            Node::Char(ch) => self.add_char(*ch),
-            Node::Command(cmd) => self.process_cmd(*cmd)?,
-            Node::Group(nodes) => self.add_group(nodes)?,
-            Node::Whitespace => unreachable!(),
-        }
-
-        Some(true)
-    }
-
-    fn add_char(&mut self, ch: char) {
+    fn handle_char(ch: char) -> (AtomType, Field<Glyph>) {
         // HACK: Map chars to their math equivalent
         let ch = match ch {
             '-' => '−',
@@ -110,37 +29,94 @@ impl<'a, Glyph: common::Glyph, Input: Iterator<Item = &'a Node<'a>>> Converter<'
             _ => ch,
         };
 
-        let atom_type = match tables::CharClassification::classify(ch).to_atom_type() {
-            Some(atom_type) => atom_type,
-            None => return,
+        let (ch, atom_type) = match tables::CharClassification::classify(ch).to_atom_type() {
+            Some(atom_type) => (ch, atom_type),
+            None => ('?', AtomType::Ord), // TODO: Error handling
         };
 
-        self.output.add_symbol(atom_type, ch);
+        (atom_type, Field::Symbol(ch))
     }
 
-    fn add_group(&mut self, nodes: &Vec<Node>) -> Option<()> {
-        let list = Converter::convert(nodes.iter())?;
-        self.output.add_list(AtomType::Ord, list);
-        Some(())
+    fn make_error_field(_text: &str) -> Field<Glyph> {
+        todo!()
     }
 
-    fn process_cmd(&mut self, cmd: &str) -> Option<()> {
+    fn handle_command<'a>(
+        cmd: &'_ str,
+        remaining: &'a str,
+    ) -> IResult<&'a str, (AtomType, Field<Glyph>)> {
         if let Some(ch) = tables::command_to_char(cmd) {
-            self.add_char(ch);
-            return Some(());
+            return Ok((remaining, Self::handle_char(ch)));
         }
-        match cmd {
-            "mathop" => match self.next_non_white()? {
-                Node::Char(ch) => self.output.add_op(*ch),
-                Node::Command(_) => return None,
-                Node::Group(nodes) => {
-                    let list = Converter::convert(nodes.iter())?;
-                    self.output.add_list(AtomType::Op, list);
-                }
-                Node::Whitespace => unreachable!(),
-            },
-            _ => return None,
-        }
-        Some(())
+
+        Ok(match cmd {
+            "mathop" => {
+                let (remaining, (_, field)) = Self::field(remaining, false)?;
+                (remaining, (AtomType::Op, field))
+            }
+            _ => {
+                let field = Self::make_error_field(cmd);
+                (remaining, (AtomType::Ord, field))
+            }
+        })
     }
+
+    fn parse_command(src: &str, with_args: bool) -> IResult<&str, (AtomType, Field<Glyph>)> {
+        let (src, cmd) = preceded(complete::char('\\'), complete::alpha1)(src)?;
+        if with_args {
+            Self::handle_command(cmd, src)
+        } else {
+            Self::handle_command(cmd, "")
+        }
+    }
+
+    fn field(src: &str, with_args: bool) -> IResult<&str, (AtomType, Field<Glyph>)> {
+        let (src, _) = Self::whitespace(src)?;
+
+        let parse_command = |src| Self::parse_command(src, with_args);
+        let parse_char = complete::none_of("}").map(Self::handle_char);
+
+        let parse_group =
+            delimited(complete::char('{'), Self::parse, complete::char('}')).map(|ml| {
+                let field = Field::MathList(ml);
+                (AtomType::Ord, field)
+            });
+
+        let mut parser = nom::branch::alt((parse_group, parse_command, parse_char));
+
+        parser(src)
+    }
+
+    pub fn atom(src: &str) -> IResult<&str, Atom<Glyph>> {
+        let (src, (atom_type, nucleus)) = Self::field(src, true)?;
+
+        let atom = Atom {
+            atom_type,
+            nucleus,
+            subscript: Field::Empty,
+            superscript: Field::Empty,
+        };
+
+        Ok((src, atom))
+    }
+
+    pub fn parse(src: &str) -> IResult<&str, MathList<Glyph>> {
+        let mut builder = crate::mathlist::Builder::default();
+        let mut src = src;
+        while !src.is_empty() && !src.starts_with("}") {
+            let (remaining, atom) = Self::atom(src)?;
+            builder.add_atom(atom);
+
+            src = remaining;
+        }
+
+        let ml = builder.finish();
+        Ok((src, ml))
+    }
+}
+
+pub fn parse<G: crate::common::Glyph>(src: &str) -> Option<MathList<G>> {
+    let xyz: IResult<&str, _> = ParserImp::<G>::parse(src);
+    let _ = xyz.unwrap();
+    ParserImp::parse(src).ok().map(|r| r.1)
 }
