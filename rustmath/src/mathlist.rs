@@ -1,4 +1,4 @@
-use crate::common;
+use crate::common::{self, Color};
 use common::Family;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -76,7 +76,7 @@ pub struct Atom<Glyph: common::Glyph> {
 
 pub enum Field<Glyph: common::Glyph> {
     Empty,
-    Symbol(char),
+    Symbol(Color, char),
     MathList(MathList<Glyph>),
     Layout(crate::layout::Node<Glyph>), // already translated
 }
@@ -212,14 +212,17 @@ impl<Glyph: common::Glyph> Field<Glyph> {
         _want_italic_correction: bool,
     ) {
         match self {
-            Field::Symbol(ch) => {
+            Field::Symbol(color, ch) => {
                 let glyph = if big {
                     backend.get_font(Family::Italic).get_larger_glyph(*ch, size)
                 } else {
                     backend.get_font(Family::Italic).get_glyph(*ch, size)
                 };
                 let glyph = glyph.unwrap();
-                let node = crate::layout::Node::Glyph { glyph };
+                let node = crate::layout::Node::Glyph {
+                    glyph,
+                    color: *color,
+                };
                 *self = Field::Layout(node);
             }
             Field::MathList(list) => {

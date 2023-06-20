@@ -1,4 +1,10 @@
 #[derive(Copy, Clone, PartialEq, Eq)]
+pub enum Color {
+    Normal,
+    Error,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Family {
     Roman,
     Italic,
@@ -25,5 +31,11 @@ pub trait Font<B: FontBackend> {
 pub trait Renderer {
     type FontBackend: FontBackend;
 
-    fn render_glyph(&mut self, glyph: &<Self::FontBackend as FontBackend>::Glyph, x0: f32, y0: f32);
+    fn render_glyph(
+        &mut self,
+        glyph: &<Self::FontBackend as FontBackend>::Glyph,
+        x0: f32,
+        y0: f32,
+        color: Color,
+    );
 }

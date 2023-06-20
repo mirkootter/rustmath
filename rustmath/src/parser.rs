@@ -1,4 +1,7 @@
-use crate::mathlist::{Atom, AtomType, Field, MathList};
+use crate::{
+    common::Color,
+    mathlist::{Atom, AtomType, Field, MathList},
+};
 use nom::{
     character::complete,
     sequence::{delimited, preceded},
@@ -34,7 +37,7 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
             None => ('?', AtomType::Ord), // TODO: Error handling
         };
 
-        (atom_type, Field::Symbol(ch))
+        (atom_type, Field::Symbol(Color::Normal, ch))
     }
 
     fn make_error_field(_text: &str) -> Field<Glyph> {

@@ -1,4 +1,4 @@
-use crate::common;
+use crate::common::{self, Color};
 use ttf_parser::{Face, GlyphId};
 
 #[derive(Default)]
@@ -181,17 +181,22 @@ impl<'a> common::Renderer for Renderer<'a> {
         glyph: &<Self::FontBackend as common::FontBackend>::Glyph,
         x0: f32,
         y0: f32,
+        color: Color,
     ) {
         const DPI: f32 = 96.0;
         let scale = DPI / 72.0;
 
+        let paint = {
+            let mut paint = tiny_skia::Paint::default();
+            match color {
+                Color::Normal => {}
+                Color::Error => paint.set_color_rgba8(255, 0, 0, 255),
+            }
+            paint
+        };
+
         let ts = tiny_skia::Transform::from_translate(x0, y0).post_scale(scale, scale);
-        self.pixmap.fill_path(
-            &glyph.path,
-            &Default::default(),
-            tiny_skia::FillRule::EvenOdd,
-            ts,
-            None,
-        );
+        self.pixmap
+            .fill_path(&glyph.path, &paint, tiny_skia::FillRule::EvenOdd, ts, None);
     }
 }

@@ -1,9 +1,10 @@
-use crate::common;
+use crate::common::{self, Color};
 
 pub enum Node<Glyph: common::Glyph> {
     Glue(f32),
     Glyph {
         glyph: Glyph,
+        color: Color,
     },
     HBox {
         children: Vec<(f32, Self)>,
@@ -23,7 +24,7 @@ impl<Glyph: common::Glyph> Node<Glyph> {
     pub fn height(&self) -> f32 {
         match self {
             Node::Glue(_) => 0.0,
-            Node::Glyph { glyph } => glyph.height(),
+            Node::Glyph { glyph, .. } => glyph.height(),
             Node::HBox { height, .. } | Node::VBox { height, .. } => *height,
         }
     }
@@ -31,7 +32,7 @@ impl<Glyph: common::Glyph> Node<Glyph> {
     pub fn depth(&self) -> f32 {
         match self {
             Node::Glue(_) => 0.0,
-            Node::Glyph { glyph } => glyph.depth(),
+            Node::Glyph { glyph, .. } => glyph.depth(),
             Node::HBox { depth, .. } | Node::VBox { depth, .. } => *depth,
         }
     }
@@ -39,7 +40,7 @@ impl<Glyph: common::Glyph> Node<Glyph> {
     pub fn advance(&self) -> f32 {
         match self {
             Node::Glue(w) => *w,
-            Node::Glyph { glyph } => glyph.advance(),
+            Node::Glyph { glyph, .. } => glyph.advance(),
             Node::HBox { advance, .. } | Node::VBox { advance, .. } => *advance,
         }
     }
@@ -100,7 +101,7 @@ impl<Glyph: common::Glyph> Node<Glyph> {
     ) {
         match self {
             Node::Glue(_) => {}
-            Node::Glyph { glyph } => renderer.render_glyph(glyph, x0, y0),
+            Node::Glyph { glyph, color } => renderer.render_glyph(glyph, x0, y0, *color),
             Node::HBox { children, .. } => {
                 let mut x = x0;
 
