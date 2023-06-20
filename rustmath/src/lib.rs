@@ -5,8 +5,7 @@ pub mod mathlist;
 pub mod parser;
 
 fn render(src: &str) -> Option<tiny_skia::Pixmap> {
-    let node = parser::Node::parse(src)?;
-    let list = node.to_mathlist()?;
+    let list = parser::parse(src)?;
 
     let fb = backend::FontBackend::default();
     let node = list.translate(&fb, 36.0, mathlist::Style::Display);

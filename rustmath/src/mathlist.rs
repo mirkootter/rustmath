@@ -119,45 +119,8 @@ impl<Glyph: common::Glyph> Builder<Glyph> {
         MathList(self.list)
     }
 
-    fn add_atom(&mut self, atom_type: AtomType, nucleus: Field<Glyph>) {
-        let atom = Atom {
-            atom_type,
-            nucleus,
-            subscript: Field::Empty,
-            superscript: Field::Empty,
-        };
-
+    pub fn add_atom(&mut self, atom: Atom<Glyph>) {
         self.list.push(Node::Atom(atom));
-    }
-
-    pub fn add_symbol(&mut self, atom_type: AtomType, ch: char) {
-        let nucleus = Field::Symbol(ch);
-        self.add_atom(atom_type, nucleus);
-    }
-
-    pub fn add_list(&mut self, atom_type: AtomType, list: MathList<Glyph>) {
-        let nucleus = Field::MathList(list);
-        self.add_atom(atom_type, nucleus);
-    }
-
-    pub fn add_bin(&mut self, ch: char) {
-        self.add_symbol(AtomType::Bin, ch);
-    }
-
-    pub fn add_op(&mut self, ch: char) {
-        self.add_symbol(AtomType::Op, ch);
-    }
-
-    pub fn add_ord(&mut self, ch: char) {
-        self.add_symbol(AtomType::Ord, ch);
-    }
-
-    pub fn add_punct(&mut self, ch: char) {
-        self.add_symbol(AtomType::Punct, ch);
-    }
-
-    pub fn add_rel(&mut self, ch: char) {
-        self.add_symbol(AtomType::Rel, ch);
     }
 }
 
