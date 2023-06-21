@@ -126,12 +126,44 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
 
     pub fn atom(src: &str) -> IResult<&str, Atom<Glyph>> {
         let (src, (atom_type, nucleus)) = Self::field(src, true)?;
+        let (mut src, _) = Self::whitespace(src)?;
+
+        let mut subscript = Field::Empty;
+        let mut superscript = Field::Empty;
+
+        let mut parse_subscript = preceded(nom::bytes::complete::tag("_"), |src| {
+            Self::field(src, false)
+        });
+
+        let mut parse_superscript = preceded(nom::bytes::complete::tag("^"), |src| {
+            Self::field(src, false)
+        });
+
+        loop {
+            let mut done_something = false;
+            if let Ok((remaining, script)) = parse_subscript(src) {
+                // TODO: Error in case of double subscript
+                subscript = script.1;
+                src = remaining;
+                done_something = true;
+            }
+            if let Ok((remaining, script)) = parse_superscript(src) {
+                // TODO: Error in case of double superscript
+                superscript = script.1;
+                src = remaining;
+                done_something = true;
+            }
+
+            if !done_something {
+                break;
+            }
+        }
 
         let atom = Atom {
             atom_type,
             nucleus,
-            subscript: Field::Empty,
-            superscript: Field::Empty,
+            subscript,
+            superscript,
         };
 
         Ok((src, atom))
