@@ -10,6 +10,11 @@ use nom::{
 use std::marker::PhantomData;
 mod tables;
 
+enum Command<'a> {
+    Named(&'a str),
+    SingleChar(char),
+}
+
 struct ParserImp<Glyph: crate::common::Glyph> {
     m: PhantomData<Glyph>,
 }
@@ -63,6 +68,11 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
         }
 
         Ok(match cmd {
+            "\\" | " " | "%" | "$" | "_" | "^" | "{" | "}" => {
+                // TODO: ' ' does not work
+                let ch = cmd.chars().next().unwrap();
+                (remaining, Self::handle_char(ch))
+            }
             "mathop" => {
                 let (remaining, (_, field)) = Self::field(remaining, false)?;
                 (remaining, (AtomType::Op, field))
@@ -75,7 +85,20 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
     }
 
     fn parse_command(src: &str, with_args: bool) -> IResult<&str, (AtomType, Field<Glyph>)> {
-        let (src, cmd) = preceded(complete::char('\\'), complete::alpha1)(src)?;
+        let (src, cmd) = preceded(
+            complete::char('\\'),
+            nom::branch::alt((
+                complete::alpha1.map(Command::Named),
+                complete::anychar.map(Command::SingleChar),
+            )),
+        )(src)?;
+
+        let mut buf = [0; 4];
+        let cmd = match cmd {
+            Command::Named(cmd) => cmd,
+            Command::SingleChar(ch) => ch.encode_utf8(&mut buf),
+        };
+
         if with_args {
             Self::handle_command(cmd, src)
         } else {
