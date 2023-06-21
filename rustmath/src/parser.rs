@@ -117,8 +117,14 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
     pub fn parse(src: &str) -> IResult<&str, MathList<Glyph>> {
         let mut builder = crate::mathlist::Builder::default();
         let mut src = src;
-        while !src.is_empty() && !src.starts_with("}") {
-            let (remaining, atom) = Self::atom(src)?;
+
+        loop {
+            let (remaining, _) = Self::whitespace(src)?;
+            if remaining.is_empty() || remaining.starts_with("}") {
+                break;
+            }
+
+            let (remaining, atom) = Self::atom(remaining)?;
             builder.add_atom(atom);
 
             src = remaining;
