@@ -5,11 +5,12 @@ codegen-units = 1   # Reduce number of codegen units to increase optimizations
 strip = true        # Strip symbols from binary*
 
 [workspace]
-default_members = [
+default-members = [
     "rustmath",
 ]
 
 members = [
     "demo",
     "build-test",
+    "rustmath",
 ]
