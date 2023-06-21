@@ -1,4 +1,4 @@
-use crate::common::{self, Color};
+use crate::common::{self, Color, FontStyle};
 use ttf_parser::{Face, GlyphId};
 
 #[derive(Default)]
@@ -105,19 +105,51 @@ struct Font<'a> {
     face: ttf_parser::Face<'a>,
 }
 
+impl<'a> Font<'a> {
+    fn size_for_style(&self, size: f32, style: FontStyle) -> f32 {
+        match style {
+            FontStyle::Normal => size,
+            FontStyle::Script => {
+                size * (self
+                    .face
+                    .tables()
+                    .math
+                    .unwrap()
+                    .constants
+                    .unwrap()
+                    .script_percent_scale_down() as f32
+                    / 100.0)
+            }
+            FontStyle::SuperScript => {
+                size * (self
+                    .face
+                    .tables()
+                    .math
+                    .unwrap()
+                    .constants
+                    .unwrap()
+                    .script_script_percent_scale_down() as f32
+                    / 100.0)
+            }
+        }
+    }
+}
+
 impl<'a> common::Font<FontBackend<'a>> for Font<'a> {
     fn get_glyph(
         &self,
         ch: char,
         size: f32,
+        style: FontStyle,
     ) -> Option<<FontBackend<'a> as common::FontBackend>::Glyph> {
-        Glyph::new(&self.face, ch, size)
+        Glyph::new(&self.face, ch, self.size_for_style(size, style))
     }
 
     fn get_larger_glyph(
         &self,
         ch: char,
         size: f32,
+        style: FontStyle,
     ) -> Option<<FontBackend<'a> as common::FontBackend>::Glyph> {
         // TODO: Do not just get the second size, but the smallest
         // glyph which is larger than `display_operator_min_height`
@@ -133,7 +165,7 @@ impl<'a> common::Font<FontBackend<'a>> for Font<'a> {
 
         let glyph_id = construction.variants.get(1)?.variant_glyph;
 
-        Glyph::new_from_id(&self.face, glyph_id, size)
+        Glyph::new_from_id(&self.face, glyph_id, self.size_for_style(size, style))
     }
 }
 

@@ -23,6 +23,37 @@ impl Style {
             _ => self,
         }
     }
+
+    pub fn to_subscript(self) -> Self {
+        if self < Self::TextCramped {
+            // SS', SS, S', S -> SS'
+            Self::SuperScriptCramped
+        } else {
+            // T', T, D', D
+            Self::ScriptCramped
+        }
+    }
+
+    pub fn to_superscript(self) -> Self {
+        match self {
+            Self::Display | Self::Text => Self::Script,
+            Self::DisplayCramped | Self::TextCramped => Self::ScriptCramped,
+            Self::Script | Self::SuperScript => Self::SuperScript,
+            Self::ScriptCramped | Self::SuperScriptCramped => Self::SuperScriptCramped,
+        }
+    }
+}
+
+impl Into<common::FontStyle> for Style {
+    fn into(self) -> common::FontStyle {
+        if self <= Self::SuperScript {
+            common::FontStyle::SuperScript
+        } else if self <= Self::Script {
+            common::FontStyle::Script
+        } else {
+            common::FontStyle::Normal
+        }
+    }
 }
 
 pub enum Node<Glyph: common::Glyph> {
@@ -176,6 +207,11 @@ impl<Glyph: common::Glyph> MathList<Glyph> {
 
             atom.nucleus
                 .translate(backend, size, style, big, italic_correction);
+
+            atom.subscript
+                .translate(backend, size, style.to_subscript(), false, true);
+            atom.superscript
+                .translate(backend, size, style.to_superscript(), false, true);
         }
 
         let mut nodes = Vec::new();
@@ -206,6 +242,16 @@ impl<Glyph: common::Glyph> MathList<Glyph> {
                 if let Some(atom) = atom.nucleus.take_translation() {
                     nodes.push((0.0, atom));
                 }
+
+                if let Some(script) = atom.subscript.take_translation() {
+                    let vshift = -10.0; // TODO
+                    nodes.push((vshift, script));
+                }
+
+                if let Some(script) = atom.superscript.take_translation() {
+                    let vshift = 10.0; // TODO
+                    nodes.push((vshift, script));
+                }
             }
         }
 
@@ -225,9 +271,13 @@ impl<Glyph: common::Glyph> Field<Glyph> {
         match self {
             Field::Symbol(color, ch) => {
                 let glyph = if big {
-                    backend.get_font(Family::Italic).get_larger_glyph(*ch, size)
+                    backend
+                        .get_font(Family::Italic)
+                        .get_larger_glyph(*ch, size, style.into())
                 } else {
-                    backend.get_font(Family::Italic).get_glyph(*ch, size)
+                    backend
+                        .get_font(Family::Italic)
+                        .get_glyph(*ch, size, style.into())
                 };
                 let glyph = glyph.unwrap();
                 let node = crate::layout::Node::Glyph {

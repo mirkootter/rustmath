@@ -10,6 +10,13 @@ pub enum Family {
     Italic,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum FontStyle {
+    Normal,
+    Script,
+    SuperScript,
+}
+
 pub trait Glyph {
     fn height(&self) -> f32;
     fn depth(&self) -> f32;
@@ -24,8 +31,8 @@ pub trait FontBackend {
 }
 
 pub trait Font<B: FontBackend> {
-    fn get_glyph(&self, ch: char, size: f32) -> Option<B::Glyph>;
-    fn get_larger_glyph(&self, ch: char, size: f32) -> Option<B::Glyph>;
+    fn get_glyph(&self, ch: char, size: f32, style: FontStyle) -> Option<B::Glyph>;
+    fn get_larger_glyph(&self, ch: char, size: f32, style: FontStyle) -> Option<B::Glyph>;
 }
 
 pub trait Renderer {
