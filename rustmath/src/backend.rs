@@ -167,6 +167,26 @@ impl<'a> common::Font<FontBackend<'a>> for Font<'a> {
 
         Glyph::new_from_id(&self.face, glyph_id, self.size_for_style(size, style))
     }
+
+    fn calculate_script_params(
+        &self,
+        size: f32,
+        style: FontStyle,
+        cramped: bool,
+    ) -> common::font_params::ScriptParams {
+        let constants = self.face.tables().math.unwrap().constants.unwrap();
+
+        let glyph_size = self.size_for_style(size, style);
+        let scale = |v: &ttf_parser::math::MathValue| v.value as f32 * glyph_size / 1000.0;
+
+        common::font_params::ScriptParams {
+            subscript_shift_down: scale(&constants.subscript_shift_down()),
+            superscript_shift_up: match cramped {
+                true => scale(&constants.superscript_shift_up_cramped()),
+                false => scale(&constants.superscript_shift_up()),
+            },
+        }
+    }
 }
 
 pub struct FontBackend<'a> {

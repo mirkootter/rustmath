@@ -1,3 +1,5 @@
+pub mod font_params;
+
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Color {
     Normal,
@@ -33,6 +35,13 @@ pub trait FontBackend {
 pub trait Font<B: FontBackend> {
     fn get_glyph(&self, ch: char, size: f32, style: FontStyle) -> Option<B::Glyph>;
     fn get_larger_glyph(&self, ch: char, size: f32, style: FontStyle) -> Option<B::Glyph>;
+
+    fn calculate_script_params(
+        &self,
+        size: f32,
+        style: FontStyle,
+        cramped: bool,
+    ) -> font_params::ScriptParams;
 }
 
 pub trait Renderer {

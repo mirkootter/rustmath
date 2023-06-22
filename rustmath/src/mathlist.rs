@@ -1,6 +1,8 @@
 use crate::common::{self, Color};
 use common::Family;
 
+mod layout_helper;
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Style {
     SuperScriptCramped,
@@ -40,6 +42,16 @@ impl Style {
             Self::DisplayCramped | Self::TextCramped => Self::ScriptCramped,
             Self::Script | Self::SuperScript => Self::SuperScript,
             Self::ScriptCramped | Self::SuperScriptCramped => Self::SuperScriptCramped,
+        }
+    }
+
+    pub fn is_cramped(self) -> bool {
+        match self {
+            Self::DisplayCramped
+            | Self::TextCramped
+            | Self::ScriptCramped
+            | Self::SuperScriptCramped => true,
+            _ => false,
         }
     }
 }
@@ -239,18 +251,31 @@ impl<Glyph: common::Glyph> MathList<Glyph> {
                 }
 
                 previous_atom_type = Some(atom_type.clone());
-                if let Some(atom) = atom.nucleus.take_translation() {
+
+                let nucleus = atom.nucleus.take_translation();
+                let subscript = atom.subscript.take_translation();
+                let superscript = atom.superscript.take_translation();
+
+                let font = backend.get_font(Family::Italic); // Default math font
+                let params = font.calculate_script_params(size, style.into(), style.is_cramped());
+
+                let (subscript_vshift, superscript_vshift) = layout_helper::calculate_script_shifts(
+                    &params,
+                    &nucleus,
+                    &subscript,
+                    &superscript,
+                );
+
+                if let Some(atom) = nucleus {
                     nodes.push((0.0, atom));
                 }
 
-                if let Some(script) = atom.subscript.take_translation() {
-                    let vshift = -10.0; // TODO
-                    nodes.push((vshift, script));
+                if let Some(script) = subscript {
+                    nodes.push((subscript_vshift, script));
                 }
 
-                if let Some(script) = atom.superscript.take_translation() {
-                    let vshift = 10.0; // TODO
-                    nodes.push((vshift, script));
+                if let Some(script) = superscript {
+                    nodes.push((superscript_vshift, script));
                 }
             }
         }
