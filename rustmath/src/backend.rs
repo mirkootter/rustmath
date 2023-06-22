@@ -179,12 +179,28 @@ impl<'a> common::Font<FontBackend<'a>> for Font<'a> {
         let glyph_size = self.size_for_style(size, style);
         let scale = |v: &ttf_parser::math::MathValue| v.value as f32 * glyph_size / 1000.0;
 
-        common::font_params::ScriptParams {
-            subscript_shift_down: scale(&constants.subscript_shift_down()),
-            superscript_shift_up: match cramped {
+        let subscript = common::font_params::SubScriptParams {
+            shift_down: scale(&constants.subscript_shift_down()),
+            top_max: scale(&constants.subscript_top_max()),
+            baseline_drop_min: scale(&constants.subscript_baseline_drop_min()),
+        };
+
+        let superscript = common::font_params::SuperScriptParams {
+            shift_up: match cramped {
                 true => scale(&constants.superscript_shift_up_cramped()),
                 false => scale(&constants.superscript_shift_up()),
             },
+            bottom_min: scale(&constants.superscript_bottom_min()),
+            baseline_drop_max: scale(&constants.superscript_baseline_drop_max()),
+        };
+
+        common::font_params::ScriptParams {
+            subscript,
+            superscript,
+            sub_super_gap_min: scale(&constants.sub_superscript_gap_min()),
+            super_bottom_max_with_subscript: scale(
+                &constants.superscript_bottom_max_with_subscript(),
+            ),
         }
     }
 }

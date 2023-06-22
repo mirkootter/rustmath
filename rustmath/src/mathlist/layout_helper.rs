@@ -6,5 +6,5 @@ pub fn calculate_script_shifts<G: crate::common::Glyph>(
     _subscript: &Option<Node<G>>,
     _superscript: &Option<Node<G>>,
 ) -> (f32, f32) {
-    (-params.subscript_shift_down, params.superscript_shift_up)
+    (-params.subscript.shift_down, params.superscript.shift_up)
 }
