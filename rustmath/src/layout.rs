@@ -21,8 +21,9 @@ pub enum Node<Glyph: common::Glyph> {
 }
 
 impl<Glyph: common::Glyph> Node<Glyph> {
-    pub fn height(&self) -> f32 {
+    pub fn height(&self, vertical_mode: bool) -> f32 {
         match self {
+            Node::Glue(h) if vertical_mode => *h,
             Node::Glue(_) => 0.0,
             Node::Glyph { glyph, .. } => glyph.height(),
             Node::HBox { height, .. } | Node::VBox { height, .. } => *height,
@@ -37,8 +38,9 @@ impl<Glyph: common::Glyph> Node<Glyph> {
         }
     }
 
-    pub fn advance(&self) -> f32 {
+    pub fn advance(&self, vertical_mode: bool) -> f32 {
         match self {
+            Node::Glue(_) if vertical_mode => 0.0,
             Node::Glue(w) => *w,
             Node::Glyph { glyph, .. } => glyph.advance(),
             Node::HBox { advance, .. } | Node::VBox { advance, .. } => *advance,
@@ -51,9 +53,9 @@ impl<Glyph: common::Glyph> Node<Glyph> {
         let mut advance = 0f32;
 
         for (vshift, node) in &children {
-            height = height.max(node.height() + vshift);
+            height = height.max(node.height(false) + vshift);
             depth = depth.max(node.depth() - vshift);
-            advance += node.advance()
+            advance += node.advance(false)
         }
 
         Node::HBox {
@@ -78,9 +80,9 @@ impl<Glyph: common::Glyph> Node<Glyph> {
                 height += node.depth();
             }
 
-            advance = advance.max(node.advance() + hshift);
+            advance = advance.max(node.advance(true) + hshift);
 
-            height += node.height();
+            height += node.height(true);
         }
 
         Node::VBox {
@@ -107,7 +109,7 @@ impl<Glyph: common::Glyph> Node<Glyph> {
 
                 for (vshift, child) in children {
                     child.render(renderer, x, y0 - vshift);
-                    x += child.advance();
+                    x += child.advance(false);
                 }
             }
             Node::VBox { children, .. } => {
@@ -121,7 +123,7 @@ impl<Glyph: common::Glyph> Node<Glyph> {
                         y -= child.depth();
                     }
                     child.render(renderer, x0 + hshift, y);
-                    y -= child.height();
+                    y -= child.height(true);
                 }
             }
         }

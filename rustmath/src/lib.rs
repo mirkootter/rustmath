@@ -15,8 +15,8 @@ fn render(src: &str) -> Option<tiny_skia::Pixmap> {
     let x_padding = 10.0; // padding in pt
     let y_padding = 5.0; // padding in pt
 
-    let width = node.advance() + 2.0 * x_padding;
-    let height = node.height() + node.depth() + 2.0 * y_padding;
+    let width = node.advance(false) + 2.0 * x_padding;
+    let height = node.height(false) + node.depth() + 2.0 * y_padding;
 
     let mut pixmap = tiny_skia::Pixmap::new(
         (width * scale).round() as u32,
