@@ -259,23 +259,37 @@ impl<Glyph: common::Glyph> MathList<Glyph> {
                 let font = backend.get_font(Family::Italic); // Default math font
                 let params = font.calculate_script_params(size, style.into(), style.is_cramped());
 
-                let (subscript_vshift, superscript_vshift) = layout_helper::calculate_script_shifts(
-                    &params,
-                    &nucleus,
-                    &subscript,
-                    &superscript,
-                );
+                let (subscript_vshift, mut superscript_vshift) =
+                    layout_helper::calculate_script_shifts(
+                        &params,
+                        &nucleus,
+                        &subscript,
+                        &superscript,
+                    );
 
                 if let Some(atom) = nucleus {
                     nodes.push((0.0, atom));
                 }
 
+                let mut script_nodes = Vec::new();
+                let mut vshift = superscript_vshift;
+
                 if let Some(script) = subscript {
-                    nodes.push((subscript_vshift, script));
+                    superscript_vshift -= subscript_vshift + script.height(false);
+                    script_nodes.push((0.0, script));
+                    vshift = subscript_vshift;
                 }
 
                 if let Some(script) = superscript {
-                    nodes.push((superscript_vshift, script));
+                    if !script_nodes.is_empty() && superscript_vshift > 0.0 {
+                        script_nodes.push((0.0, crate::layout::Node::Glue(superscript_vshift)));
+                    }
+                    script_nodes.push((0.0, script));
+                }
+
+                if !script_nodes.is_empty() {
+                    let vbox = crate::layout::Node::new_vbox(script_nodes);
+                    nodes.push((vshift, vbox));
                 }
             }
         }
