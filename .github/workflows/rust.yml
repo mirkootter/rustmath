@@ -24,8 +24,9 @@ jobs:
         version: 'latest'
     - name: Build
       run: trunk build --release --public-url /math-demo demo/index.html
-    - name: Archive production artifacts
-      uses: actions/upload-artifact@v3
+    - name: setup ssh keys
+      uses: webfactory/ssh-agent@v0.6.0
       with:
-        name: webapp
-        path: demo/dist
+        ssh-private-key: ${{ secrets.DEMO_DEPLOY_KEY }}
+    - name: deploy demo
+      run: python ci/deploy-demo.py
