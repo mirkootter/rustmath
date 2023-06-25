@@ -259,7 +259,7 @@ impl<Glyph: common::Glyph> MathList<Glyph> {
                 let subscript = atom.subscript.take_translation();
                 let superscript = atom.superscript.take_translation();
 
-                let _italic_correction = nucleus.as_ref().map(|n| n.1).unwrap_or(0.0);
+                let italic_correction = nucleus.as_ref().map(|n| n.1).unwrap_or(0.0);
                 let nucleus = nucleus.map(|n| n.0);
                 let subscript = subscript.map(|n| n.0);
                 let superscript = superscript.map(|n| n.0);
@@ -292,7 +292,7 @@ impl<Glyph: common::Glyph> MathList<Glyph> {
                     if !script_nodes.is_empty() && superscript_vshift > 0.0 {
                         script_nodes.push((0.0, crate::layout::Node::Glue(superscript_vshift)));
                     }
-                    script_nodes.push((0.0, script));
+                    script_nodes.push((italic_correction, script));
                 }
 
                 if !script_nodes.is_empty() {
