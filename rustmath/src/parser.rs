@@ -45,14 +45,17 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
         (atom_type, symbol)
     }
 
-    fn make_error_field(text: &str) -> Field<Glyph> {
-        match text.len() {
+    fn make_error_field(text: &[&str]) -> Field<Glyph> {
+        let len = text.into_iter().map(|x| x.len()).sum();
+        match len {
             0 => Field::Empty,
-            1 => Field::Symbol(Color::Error, text.chars().next().unwrap()),
+            1 => Field::Symbol(Color::Error, text[0].chars().next().unwrap()),
             _ => {
                 let mut builder = crate::mathlist::Builder::default();
-                for ch in text.chars() {
-                    builder.add_symbol(ch, Color::Error);
+                for text in text {
+                    for ch in text.chars() {
+                        builder.add_symbol(ch, Color::Error);
+                    }
                 }
                 Field::MathList(builder.finish())
             }
@@ -78,7 +81,7 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
                 (remaining, (AtomType::Op, field))
             }
             _ => {
-                let field = Self::make_error_field(cmd);
+                let field = Self::make_error_field(&["\\", cmd]);
                 (remaining, (AtomType::Ord, field))
             }
         })
@@ -112,14 +115,16 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
 
         let parse_command = |src| Self::parse_command(src, with_args);
         let parse_char = complete::none_of("}").map(Self::handle_char);
-
+        let parse_broken_char =
+            nom::bytes::complete::tag("{").map(|_| (AtomType::Ord, Self::make_error_field(&["{"])));
         let parse_group =
             delimited(complete::char('{'), Self::parse, complete::char('}')).map(|ml| {
                 let field = Field::MathList(ml);
                 (AtomType::Ord, field)
             });
 
-        let mut parser = nom::branch::alt((parse_group, parse_command, parse_char));
+        let mut parser =
+            nom::branch::alt((parse_group, parse_command, parse_broken_char, parse_char));
 
         parser(src)
     }
