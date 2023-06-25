@@ -317,21 +317,22 @@ impl<Glyph: common::Glyph> Field<Glyph> {
     ) {
         match self {
             Field::Symbol(color, ch) => {
-                let glyph = if big {
-                    backend
-                        .get_font(Family::Italic)
-                        .get_larger_glyph(*ch, size, style.into())
+                let font = backend.get_font(Family::Italic);
+
+                let glyph = big
+                    .then_some(())
+                    .and_then(|_| font.get_larger_glyph(*ch, size, style.into()))
+                    .or_else(|| font.get_glyph(*ch, size, style.into()));
+
+                let (color, glyph) = if let Some(glyph) = glyph {
+                    (*color, glyph)
                 } else {
-                    backend
-                        .get_font(Family::Italic)
-                        .get_glyph(*ch, size, style.into())
+                    let glyph = font.get_glyph('?', size, style.into()).unwrap();
+                    (Color::Error, glyph)
                 };
-                let glyph = glyph.unwrap();
+
                 let italic_correction = glyph.italic_correction();
-                let translation = crate::layout::Node::Glyph {
-                    glyph,
-                    color: *color,
-                };
+                let translation = crate::layout::Node::Glyph { glyph, color };
                 *self = Field::Layout {
                     translation,
                     italic_correction,
