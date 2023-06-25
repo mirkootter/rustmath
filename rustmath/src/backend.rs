@@ -203,6 +203,15 @@ impl<'a> common::Font<FontBackend<'a>> for Font<'a> {
             ),
         }
     }
+
+    fn get_fallback_glyph(
+        &self,
+        size: f32,
+        style: FontStyle,
+    ) -> <FontBackend<'a> as common::FontBackend>::Glyph {
+        // TODO: Better character?
+        Self::get_glyph(self, '?', size, style).unwrap()
+    }
 }
 
 pub struct FontBackend<'a> {

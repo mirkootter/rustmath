@@ -33,6 +33,7 @@ pub trait FontBackend {
 }
 
 pub trait Font<B: FontBackend> {
+    fn get_fallback_glyph(&self, size: f32, style: FontStyle) -> B::Glyph;
     fn get_glyph(&self, ch: char, size: f32, style: FontStyle) -> Option<B::Glyph>;
     fn get_larger_glyph(&self, ch: char, size: f32, style: FontStyle) -> Option<B::Glyph>;
 

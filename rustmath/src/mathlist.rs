@@ -120,6 +120,7 @@ pub struct Atom<Glyph: common::Glyph> {
 pub enum Field<Glyph: common::Glyph> {
     Empty,
     Symbol(Color, char),
+    Fallback(Color),
     MathList(MathList<Glyph>),
     Layout {
         translation: crate::layout::Node<Glyph>,
@@ -327,12 +328,25 @@ impl<Glyph: common::Glyph> Field<Glyph> {
                 let (color, glyph) = if let Some(glyph) = glyph {
                     (*color, glyph)
                 } else {
-                    let glyph = font.get_glyph('?', size, style.into()).unwrap();
+                    let glyph = font.get_fallback_glyph(size, style.into());
                     (Color::Error, glyph)
                 };
 
                 let italic_correction = glyph.italic_correction();
                 let translation = crate::layout::Node::Glyph { glyph, color };
+                *self = Field::Layout {
+                    translation,
+                    italic_correction,
+                };
+            }
+            Field::Fallback(color) => {
+                let font = backend.get_font(Family::Italic);
+                let glyph = font.get_fallback_glyph(size, style.into());
+                let italic_correction = glyph.italic_correction();
+                let translation = crate::layout::Node::Glyph {
+                    glyph,
+                    color: *color,
+                };
                 *self = Field::Layout {
                     translation,
                     italic_correction,

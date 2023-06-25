@@ -39,7 +39,7 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
 
         let (symbol, atom_type) = match tables::CharClassification::classify(ch).to_atom_type() {
             Some(atom_type) => (Field::Symbol(Color::Normal, ch), atom_type),
-            None => (Field::Symbol(Color::Error, '?'), AtomType::Ord), // TODO: Default-Char for the font
+            None => (Field::Fallback(Color::Error), AtomType::Ord),
         };
 
         (atom_type, symbol)
