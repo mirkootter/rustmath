@@ -24,6 +24,8 @@ pub trait Glyph {
     fn depth(&self) -> f32;
     fn advance(&self) -> f32;
     fn italic_correction(&self) -> f32;
+
+    fn set_advance(&mut self, advance: f32);
 }
 
 pub trait FontBackend {
@@ -35,7 +37,13 @@ pub trait FontBackend {
 pub trait Font<B: FontBackend> {
     fn get_fallback_glyph(&self, size: f32, style: FontStyle) -> B::Glyph;
     fn get_glyph(&self, ch: char, size: f32, style: FontStyle) -> Option<B::Glyph>;
-    fn get_larger_glyph(&self, ch: char, size: f32, style: FontStyle) -> Option<B::Glyph>;
+    fn get_larger_glyph(
+        &self,
+        ch: char,
+        size: f32,
+        style: FontStyle,
+        include_italic_correction: bool,
+    ) -> Option<B::Glyph>;
 
     fn calculate_script_params(
         &self,

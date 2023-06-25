@@ -60,6 +60,10 @@ impl common::Glyph for Glyph {
     fn italic_correction(&self) -> f32 {
         self.italic_correction
     }
+
+    fn set_advance(&mut self, advance: f32) {
+        self.advance = advance;
+    }
 }
 
 impl Glyph {
@@ -150,6 +154,7 @@ impl<'a> common::Font<FontBackend<'a>> for Font<'a> {
         ch: char,
         size: f32,
         style: FontStyle,
+        include_italic_correction: bool,
     ) -> Option<<FontBackend<'a> as common::FontBackend>::Glyph> {
         // TODO: Do not just get the second size, but the smallest
         // glyph which is larger than `display_operator_min_height`
@@ -165,7 +170,23 @@ impl<'a> common::Font<FontBackend<'a>> for Font<'a> {
 
         let glyph_id = construction.variants.get(1)?.variant_glyph;
 
-        Glyph::new_from_id(&self.face, glyph_id, self.size_for_style(size, style))
+        let mut glyph = Glyph::new_from_id(&self.face, glyph_id, self.size_for_style(size, style))?;
+
+        // TODO: The following is an ugly hack and most likely not correct
+        // For example, the small Integral symbol has the same property. Maybe we have
+        // to use the unicode math classes again
+
+        // TODO: Most likely, the problem goes away once we implement subscript/superscript
+        // kerning.
+
+        // For large glyphs, the italic correction is already included in the advance width
+        if include_italic_correction {
+            glyph.italic_correction = 0.0;
+        } else {
+            glyph.advance -= glyph.italic_correction;
+        }
+
+        Some(glyph)
     }
 
     fn calculate_script_params(

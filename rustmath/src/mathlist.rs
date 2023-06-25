@@ -128,6 +128,12 @@ pub enum Field<Glyph: common::Glyph> {
     }, // already translated
 }
 
+impl<G: common::Glyph> Field<G> {
+    pub fn is_empty(&self) -> bool {
+        matches!(self, Self::Empty)
+    }
+}
+
 #[derive(Clone)]
 pub enum AtomType {
     Acc,
@@ -221,13 +227,19 @@ impl<Glyph: common::Glyph> MathList<Glyph> {
             // TODO: Determine if we need italic correction (See Rule 17)
             let italic_correction = false;
 
-            atom.nucleus
-                .translate(backend, size, style, big, italic_correction);
+            atom.nucleus.translate(
+                backend,
+                size,
+                style,
+                big,
+                !atom.subscript.is_empty(),
+                italic_correction,
+            );
 
             atom.subscript
-                .translate(backend, size, style.to_subscript(), false, true);
+                .translate(backend, size, style.to_subscript(), false, false, true);
             atom.superscript
-                .translate(backend, size, style.to_superscript(), false, true);
+                .translate(backend, size, style.to_superscript(), false, false, true);
         }
 
         let mut nodes = Vec::new();
@@ -314,6 +326,7 @@ impl<Glyph: common::Glyph> Field<Glyph> {
         size: f32,
         style: Style,
         big: bool,
+        has_subscript: bool,
         _want_italic_correction: bool,
     ) {
         match self {
@@ -322,7 +335,7 @@ impl<Glyph: common::Glyph> Field<Glyph> {
 
                 let glyph = big
                     .then_some(())
-                    .and_then(|_| font.get_larger_glyph(*ch, size, style.into()))
+                    .and_then(|_| font.get_larger_glyph(*ch, size, style.into(), !has_subscript))
                     .or_else(|| font.get_glyph(*ch, size, style.into()));
 
                 let (color, glyph) = if let Some(glyph) = glyph {
