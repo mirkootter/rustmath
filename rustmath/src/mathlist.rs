@@ -121,7 +121,10 @@ pub enum Field<Glyph: common::Glyph> {
     Empty,
     Symbol(Color, char),
     MathList(MathList<Glyph>),
-    Layout(crate::layout::Node<Glyph>), // already translated
+    Layout {
+        translation: crate::layout::Node<Glyph>,
+        italic_correction: f32,
+    }, // already translated
 }
 
 #[derive(Clone)]
@@ -256,6 +259,11 @@ impl<Glyph: common::Glyph> MathList<Glyph> {
                 let subscript = atom.subscript.take_translation();
                 let superscript = atom.superscript.take_translation();
 
+                let _italic_correction = nucleus.as_ref().map(|n| n.1).unwrap_or(0.0);
+                let nucleus = nucleus.map(|n| n.0);
+                let subscript = subscript.map(|n| n.0);
+                let superscript = superscript.map(|n| n.0);
+
                 let font = backend.get_font(Family::Italic); // Default math font
                 let params = font.calculate_script_params(size, style.into(), style.is_cramped());
 
@@ -319,27 +327,37 @@ impl<Glyph: common::Glyph> Field<Glyph> {
                         .get_glyph(*ch, size, style.into())
                 };
                 let glyph = glyph.unwrap();
-                let node = crate::layout::Node::Glyph {
+                let italic_correction = glyph.italic_correction();
+                let translation = crate::layout::Node::Glyph {
                     glyph,
                     color: *color,
                 };
-                *self = Field::Layout(node);
+                *self = Field::Layout {
+                    translation,
+                    italic_correction,
+                };
             }
             Field::MathList(list) => {
                 let mut taken_list = MathList(Default::default());
                 std::mem::swap(&mut taken_list, list);
-                let node = taken_list.translate(backend, size, style);
-                *self = Field::Layout(node);
+                let translation = taken_list.translate(backend, size, style);
+                *self = Field::Layout {
+                    translation,
+                    italic_correction: 0.0,
+                };
             }
             _ => {} // Nothing to do
         }
     }
 
-    fn take_translation(&mut self) -> Option<crate::layout::Node<Glyph>> {
+    fn take_translation(&mut self) -> Option<(crate::layout::Node<Glyph>, f32)> {
         let mut f = Field::Empty;
         std::mem::swap(&mut f, self);
         match f {
-            Field::Layout(node) => Some(node),
+            Field::Layout {
+                translation,
+                italic_correction,
+            } => Some((translation, italic_correction)),
             _ => None,
         }
     }
