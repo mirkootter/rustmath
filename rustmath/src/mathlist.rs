@@ -54,6 +54,21 @@ impl Style {
             _ => false,
         }
     }
+
+    pub fn to_numerator(self) -> Self {
+        match self {
+            Self::Display => Self::Text,
+            Self::DisplayCramped => Self::TextCramped,
+            _ => self.to_superscript(),
+        }
+    }
+
+    pub fn to_denominator(self) -> Self {
+        match self {
+            Self::Display | Self::DisplayCramped => Self::TextCramped,
+            _ => self.to_subscript(),
+        }
+    }
 }
 
 impl Into<common::FontStyle> for Style {
@@ -382,8 +397,46 @@ impl<Glyph: common::Glyph> Field<Glyph> {
                     italic_correction: 0.0,
                 };
             }
-            Field::Fraction(_num, _denom) => {
-                // TODO
+            Field::Fraction(num, denom) => {
+                let mut children = Vec::new();
+                children.reserve_exact(3);
+
+                num.translate(backend, size, style.to_numerator(), false, false, true);
+                denom.translate(backend, size, style.to_denominator(), false, false, true);
+
+                let num = num.take_translation();
+                let denom = denom.take_translation();
+
+                let font = backend.get_font(Family::Italic);
+                let general_params =
+                    font.calculate_general_params(size, style.into(), style.is_cramped());
+                let frac_params =
+                    font.calculate_fraction_params(size, style.into(), style.is_cramped());
+
+                // TODO: Handle italic corrections of num/denom
+
+                let mut vshift = general_params.axis_height;
+                if let Some((denom, _)) = denom {
+                    let gap = frac_params.denominator.gap_min; // TODO: Correct gap
+                    vshift -= denom.height(false) + gap; // TODO: + 1/2 rule height
+                    children.push((0.0, denom));
+                    children.push((0.0, crate::layout::Node::Glue(gap)));
+                }
+
+                // TODO: Add rule
+
+                if let Some((num, _)) = num {
+                    let gap = frac_params.numerator.gap_min; // TODO: Correct gap
+                    children.push((0.0, crate::layout::Node::Glue(gap)));
+                    children.push((0.0, num));
+                }
+
+                let vbox = crate::layout::Node::new_vbox(children);
+                let translation = crate::layout::Node::new_hbox(vec![(vshift, vbox)]);
+                *self = Field::Layout {
+                    translation,
+                    italic_correction: 0.0,
+                };
             }
             Field::Empty | Field::Layout { .. } => {}
         }
