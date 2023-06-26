@@ -94,9 +94,14 @@ fn spacing(
 
     match (left, right) {
         (Ord, Op) | (Op, Ord) | (Op, Op) | (Close, Op) | (Inner, Op) => thin,
-        (Punct, _) | (Inner, Ord) | (Inner, Open) | (Inner, Punct) | (Inner, Inner) => {
-            nonscript(thin)
-        }
+        (Punct, _)
+        | (Inner, Ord)
+        | (Inner, Open)
+        | (Inner, Punct)
+        | (Inner, Inner)
+        | (Ord, Inner)
+        | (Op, Inner)
+        | (Close, Inner) => nonscript(thin),
         (Ord, Bin) | (Bin, _) | (Close, Bin) | (Inner, Bin) => nonscript(med),
         (Ord, Rel) | (Op, Rel) | (Rel, _) | (Close, Rel) | (Inner, Rel) => nonscript(thick),
         _ => 0.0,
