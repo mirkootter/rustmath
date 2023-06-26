@@ -76,6 +76,13 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
                 let ch = cmd.chars().next().unwrap();
                 (remaining, Self::handle_char(ch))
             }
+            "frac" => {
+                let (remaining, (_, numerator)) = Self::field(remaining, false)?;
+                let (remaining, (_, denominator)) = Self::field(remaining, false)?;
+
+                let field = Field::Fraction(numerator.into(), denominator.into());
+                (remaining, (AtomType::Inner, field))
+            }
             "mathop" => {
                 let (remaining, (_, field)) = Self::field(remaining, false)?;
                 (remaining, (AtomType::Op, field))

@@ -129,6 +129,7 @@ pub enum Field<Glyph: common::Glyph> {
     Symbol(Color, char),
     Fallback(Color),
     MathList(MathList<Glyph>),
+    Fraction(Box<Self>, Box<Self>),
     Layout {
         translation: crate::layout::Node<Glyph>,
         italic_correction: f32,
@@ -381,7 +382,10 @@ impl<Glyph: common::Glyph> Field<Glyph> {
                     italic_correction: 0.0,
                 };
             }
-            _ => {} // Nothing to do
+            Field::Fraction(_num, _denom) => {
+                // TODO
+            }
+            Field::Empty | Field::Layout { .. } => {}
         }
     }
 
