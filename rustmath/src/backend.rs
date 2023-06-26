@@ -112,7 +112,7 @@ struct Font<'a> {
 impl<'a> Font<'a> {
     fn size_for_style(&self, size: f32, style: FontStyle) -> f32 {
         match style {
-            FontStyle::Normal => size,
+            FontStyle::Display | FontStyle::Text => size,
             FontStyle::Script => {
                 size * (self
                     .face
@@ -222,6 +222,67 @@ impl<'a> common::Font<FontBackend<'a>> for Font<'a> {
             super_bottom_max_with_subscript: scale(
                 &constants.superscript_bottom_max_with_subscript(),
             ),
+        }
+    }
+
+    fn calculate_general_params(
+        &self,
+        size: f32,
+        style: FontStyle,
+        _cramped: bool,
+    ) -> common::font_params::GeneralParams {
+        let constants = self.face.tables().math.unwrap().constants.unwrap();
+
+        let glyph_size = self.size_for_style(size, style);
+        let scale = |v: &ttf_parser::math::MathValue| v.value as f32 * glyph_size / 1000.0;
+
+        common::font_params::GeneralParams {
+            axis_height: scale(&constants.axis_height()),
+        }
+    }
+
+    fn calculate_fraction_params(
+        &self,
+        size: f32,
+        style: FontStyle,
+        _cramped: bool,
+    ) -> common::font_params::FractionParams {
+        let constants = self.face.tables().math.unwrap().constants.unwrap();
+
+        let glyph_size = self.size_for_style(size, style);
+        let scale = |v: &ttf_parser::math::MathValue| v.value as f32 * glyph_size / 1000.0;
+
+        let (numerator, denominator) = match style {
+            FontStyle::Display => {
+                let numerator = common::font_params::FractionPartParams {
+                    shift: scale(&constants.fraction_numerator_display_style_shift_up()),
+                    gap_min: scale(&constants.fraction_num_display_style_gap_min()),
+                };
+                let denominator = common::font_params::FractionPartParams {
+                    shift: scale(&constants.fraction_denominator_display_style_shift_down()),
+                    gap_min: scale(&constants.fraction_denom_display_style_gap_min()),
+                };
+
+                (numerator, denominator)
+            }
+            _ => {
+                let numerator = common::font_params::FractionPartParams {
+                    shift: scale(&constants.fraction_numerator_shift_up()),
+                    gap_min: scale(&constants.fraction_numerator_gap_min()),
+                };
+                let denominator = common::font_params::FractionPartParams {
+                    shift: scale(&constants.fraction_denominator_shift_down()),
+                    gap_min: scale(&constants.fraction_denominator_gap_min()),
+                };
+
+                (numerator, denominator)
+            }
+        };
+
+        common::font_params::FractionParams {
+            numerator,
+            denominator,
+            rule_thickness: scale(&constants.fraction_rule_thickness()),
         }
     }
 

@@ -14,7 +14,8 @@ pub enum Family {
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum FontStyle {
-    Normal,
+    Display,
+    Text,
     Script,
     SuperScript,
 }
@@ -51,6 +52,20 @@ pub trait Font<B: FontBackend> {
         style: FontStyle,
         cramped: bool,
     ) -> font_params::ScriptParams;
+
+    fn calculate_general_params(
+        &self,
+        size: f32,
+        style: FontStyle,
+        cramped: bool,
+    ) -> font_params::GeneralParams;
+
+    fn calculate_fraction_params(
+        &self,
+        size: f32,
+        style: FontStyle,
+        cramped: bool,
+    ) -> font_params::FractionParams;
 }
 
 pub trait Renderer {

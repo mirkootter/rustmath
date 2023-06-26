@@ -62,8 +62,10 @@ impl Into<common::FontStyle> for Style {
             common::FontStyle::SuperScript
         } else if self <= Self::Script {
             common::FontStyle::Script
+        } else if self <= Self::Text {
+            common::FontStyle::Text
         } else {
-            common::FontStyle::Normal
+            common::FontStyle::Display
         }
     }
 }
