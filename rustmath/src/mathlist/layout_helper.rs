@@ -1,4 +1,7 @@
-use crate::{common::font_params::ScriptParams, layout::Node};
+use crate::{
+    common::font_params::{FractionParams, ScriptParams},
+    layout::Node,
+};
 
 pub fn calculate_script_shifts<G: crate::common::Glyph>(
     params: &ScriptParams,
@@ -40,4 +43,24 @@ pub fn calculate_script_shifts<G: crate::common::Glyph>(
     }
 
     (-vshift_down, vshift_up)
+}
+
+pub fn calculate_numerator_gap<G: crate::common::Glyph>(
+    axis_height: f32,
+    params: &FractionParams,
+    num: &Node<G>,
+) -> f32 {
+    let np = &params.numerator;
+    let gap_after_shift = np.shift - num.depth() - (axis_height + params.rule_thickness / 2.0);
+    gap_after_shift.max(np.gap_min)
+}
+
+pub fn calculate_denominator_gap<G: crate::common::Glyph>(
+    axis_height: f32,
+    params: &FractionParams,
+    denom: &Node<G>,
+) -> f32 {
+    let dp = &params.denominator;
+    let gap_after_shift = dp.shift - denom.height(true) + axis_height - params.rule_thickness / 2.0;
+    gap_after_shift.max(dp.gap_min)
 }

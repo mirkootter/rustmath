@@ -427,7 +427,11 @@ impl<Glyph: common::Glyph> Field<Glyph> {
 
                 let mut vshift = general_params.axis_height;
                 if let Some((denom, italic_correction)) = denom {
-                    let gap = frac_params.denominator.gap_min; // TODO: Correct gap
+                    let gap = layout_helper::calculate_denominator_gap(
+                        general_params.axis_height,
+                        &frac_params,
+                        &denom,
+                    );
                     vshift -= denom.height(false) + gap + frac_params.rule_thickness / 2.0;
 
                     let hshift = (width - denom.advance(true) - italic_correction).max(0.0) / 2.0;
@@ -441,7 +445,11 @@ impl<Glyph: common::Glyph> Field<Glyph> {
                 ));
 
                 if let Some((num, italic_correction)) = num {
-                    let gap = frac_params.numerator.gap_min; // TODO: Correct gap
+                    let gap = layout_helper::calculate_numerator_gap(
+                        general_params.axis_height,
+                        &frac_params,
+                        &num,
+                    );
                     let hshift = (width - num.advance(true) - italic_correction).max(0.0) / 2.0;
                     children.push((0.0, crate::layout::Node::Glue(gap)));
                     children.push((hshift, num));
