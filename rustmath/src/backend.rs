@@ -358,4 +358,15 @@ impl<'a> common::Renderer for Renderer<'a> {
         self.pixmap
             .fill_path(&glyph.path, &paint, tiny_skia::FillRule::EvenOdd, ts, None);
     }
+
+    fn render_box(&mut self, x0: f32, y0: f32, width: f32, height: f32) {
+        const DPI: f32 = 96.0;
+        let scale = DPI / 72.0;
+
+        let ts = tiny_skia::Transform::from_scale(scale, scale);
+
+        let rect = tiny_skia::Rect::from_ltrb(x0, y0 - height, x0 + width, y0).unwrap();
+        self.pixmap
+            .fill_rect(rect, &tiny_skia::Paint::default(), ts, None);
+    }
 }

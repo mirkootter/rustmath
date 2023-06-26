@@ -78,4 +78,6 @@ pub trait Renderer {
         y0: f32,
         color: Color,
     );
+
+    fn render_box(&mut self, x0: f32, y0: f32, width: f32, height: f32);
 }

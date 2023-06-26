@@ -413,22 +413,38 @@ impl<Glyph: common::Glyph> Field<Glyph> {
                 let frac_params =
                     font.calculate_fraction_params(size, style.into(), style.is_cramped());
 
-                // TODO: Handle italic corrections of num/denom
+                let width = {
+                    let mut width = 0.0f32;
+                    if let Some((num, italic_correction)) = &num {
+                        width = width.max(num.advance(true) + italic_correction);
+                    };
+                    if let Some((denom, italic_correction)) = &denom {
+                        width = width.max(denom.advance(false) + italic_correction);
+                    }
+
+                    width
+                };
 
                 let mut vshift = general_params.axis_height;
-                if let Some((denom, _)) = denom {
+                if let Some((denom, italic_correction)) = denom {
                     let gap = frac_params.denominator.gap_min; // TODO: Correct gap
-                    vshift -= denom.height(false) + gap; // TODO: + 1/2 rule height
-                    children.push((0.0, denom));
+                    vshift -= denom.height(false) + gap + frac_params.rule_thickness / 2.0;
+
+                    let hshift = (width - denom.advance(true) - italic_correction).max(0.0) / 2.0;
+                    children.push((hshift, denom));
                     children.push((0.0, crate::layout::Node::Glue(gap)));
                 }
 
-                // TODO: Add rule
+                children.push((
+                    0.0,
+                    crate::layout::Node::new_rule(width, frac_params.rule_thickness),
+                ));
 
-                if let Some((num, _)) = num {
+                if let Some((num, italic_correction)) = num {
                     let gap = frac_params.numerator.gap_min; // TODO: Correct gap
+                    let hshift = (width - num.advance(true) - italic_correction).max(0.0) / 2.0;
                     children.push((0.0, crate::layout::Node::Glue(gap)));
-                    children.push((0.0, num));
+                    children.push((hshift, num));
                 }
 
                 let vbox = crate::layout::Node::new_vbox(children);

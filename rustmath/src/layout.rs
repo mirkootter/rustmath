@@ -18,6 +18,11 @@ pub enum Node<Glyph: common::Glyph> {
         depth: f32,
         advance: f32,
     },
+    Rule {
+        height: f32,
+        depth: f32,
+        advance: f32,
+    },
 }
 
 impl<Glyph: common::Glyph> Node<Glyph> {
@@ -26,7 +31,9 @@ impl<Glyph: common::Glyph> Node<Glyph> {
             Node::Glue(h) if vertical_mode => *h,
             Node::Glue(_) => 0.0,
             Node::Glyph { glyph, .. } => glyph.height(),
-            Node::HBox { height, .. } | Node::VBox { height, .. } => *height,
+            Node::HBox { height, .. } | Node::VBox { height, .. } | Node::Rule { height, .. } => {
+                *height
+            }
         }
     }
 
@@ -34,7 +41,9 @@ impl<Glyph: common::Glyph> Node<Glyph> {
         match self {
             Node::Glue(_) => 0.0,
             Node::Glyph { glyph, .. } => glyph.depth(),
-            Node::HBox { depth, .. } | Node::VBox { depth, .. } => *depth,
+            Node::HBox { depth, .. } | Node::VBox { depth, .. } | Node::Rule { depth, .. } => {
+                *depth
+            }
         }
     }
 
@@ -43,7 +52,9 @@ impl<Glyph: common::Glyph> Node<Glyph> {
             Node::Glue(_) if vertical_mode => 0.0,
             Node::Glue(w) => *w,
             Node::Glyph { glyph, .. } => glyph.advance(),
-            Node::HBox { advance, .. } | Node::VBox { advance, .. } => *advance,
+            Node::HBox { advance, .. }
+            | Node::VBox { advance, .. }
+            | Node::Rule { advance, .. } => *advance,
         }
     }
 
@@ -92,6 +103,14 @@ impl<Glyph: common::Glyph> Node<Glyph> {
             advance,
         }
     }
+
+    pub fn new_rule(width: f32, height: f32) -> Self {
+        Self::Rule {
+            height,
+            depth: 0.0,
+            advance: width,
+        }
+    }
 }
 
 impl<Glyph: common::Glyph> Node<Glyph> {
@@ -125,6 +144,13 @@ impl<Glyph: common::Glyph> Node<Glyph> {
                     child.render(renderer, x0 + hshift, y);
                     y -= child.height(true);
                 }
+            }
+            Node::Rule {
+                height,
+                depth,
+                advance,
+            } => {
+                renderer.render_box(x0, y0 + depth, *advance, depth + height);
             }
         }
     }
