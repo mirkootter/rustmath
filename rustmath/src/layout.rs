@@ -127,7 +127,7 @@ impl<Glyph: common::Glyph> Node<Glyph> {
                 let mut x = x0;
 
                 for (vshift, child) in children {
-                    child.render(renderer, x, y0 - vshift);
+                    child.render(renderer, x, y0 + vshift);
                     x += child.advance(false);
                 }
             }
@@ -139,10 +139,10 @@ impl<Glyph: common::Glyph> Node<Glyph> {
                     if first {
                         first = false;
                     } else {
-                        y -= child.depth();
+                        y += child.depth();
                     }
                     child.render(renderer, x0 + hshift, y);
-                    y -= child.height(true);
+                    y += child.height(true);
                 }
             }
             Node::Rule {
@@ -150,7 +150,7 @@ impl<Glyph: common::Glyph> Node<Glyph> {
                 depth,
                 advance,
             } => {
-                renderer.render_box(x0, y0 + depth, *advance, depth + height);
+                renderer.render_box(x0, y0 - depth, *advance, depth + height);
             }
         }
     }

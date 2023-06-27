@@ -8,7 +8,7 @@ struct OutlineBuilder {
 
 impl OutlineBuilder {
     pub fn finish(self, scale: f32) -> tiny_skia::Path {
-        let ts = tiny_skia::Transform::from_scale(scale, -scale);
+        let ts = tiny_skia::Transform::from_scale(scale, scale);
         self.path_builder.finish().unwrap().transform(ts).unwrap()
     }
 }
@@ -354,7 +354,9 @@ impl<'a> common::Renderer for Renderer<'a> {
             paint
         };
 
-        let ts = tiny_skia::Transform::from_translate(x0, y0).post_scale(scale, scale);
+        let ts = tiny_skia::Transform::from_translate(x0, y0)
+            .post_scale(scale, -scale)
+            .post_translate(0.0, self.pixmap.height() as f32);
         self.pixmap
             .fill_path(&glyph.path, &paint, tiny_skia::FillRule::EvenOdd, ts, None);
     }
@@ -363,9 +365,10 @@ impl<'a> common::Renderer for Renderer<'a> {
         const DPI: f32 = 96.0;
         let scale = DPI / 72.0;
 
-        let ts = tiny_skia::Transform::from_scale(scale, scale);
+        let ts = tiny_skia::Transform::from_scale(scale, -scale)
+            .post_translate(0.0, self.pixmap.height() as f32);
 
-        let rect = tiny_skia::Rect::from_ltrb(x0, y0 - height, x0 + width, y0).unwrap();
+        let rect = tiny_skia::Rect::from_ltrb(x0, y0, x0 + width, y0 + height).unwrap();
         self.pixmap
             .fill_rect(rect, &tiny_skia::Paint::default(), ts, None);
     }

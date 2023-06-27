@@ -25,7 +25,7 @@ fn render(src: &str) -> Option<tiny_skia::Pixmap> {
     .unwrap();
     let mut renderer = backend::Renderer::new(&mut pixmap, fb);
 
-    node.render(&mut renderer, x_padding, height - y_padding - node.depth());
+    node.render(&mut renderer, x_padding, y_padding + node.depth());
     Some(pixmap)
 }
 
