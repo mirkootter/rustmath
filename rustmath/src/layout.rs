@@ -81,12 +81,18 @@ impl<Glyph: common::Glyph> Node<Glyph> {
         let mut height = 0f32;
         let mut depth = 0f32;
         let mut advance = 0f32;
+        let mut vshift = 0f32;
 
         let mut first = true;
         for (hshift, node) in &children {
             if first {
-                first = false;
-                depth = node.depth();
+                if let Self::Glue(glue) = node {
+                    vshift += glue;
+                    continue;
+                } else {
+                    first = false;
+                    depth = node.depth();
+                }
             } else {
                 height += node.depth();
             }
@@ -95,6 +101,9 @@ impl<Glyph: common::Glyph> Node<Glyph> {
 
             height += node.height(true);
         }
+
+        let height = (height + vshift).max(0.0);
+        let depth = (depth - vshift).max(0.0);
 
         Node::VBox {
             children,
