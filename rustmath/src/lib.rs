@@ -4,12 +4,10 @@ pub mod layout;
 pub mod mathlist;
 pub mod parser;
 
-fn render(src: &str) -> Option<tiny_skia::Pixmap> {
-    let list = parser::parse(src)?;
-
-    let fb = backend::FontBackend::default();
-    let node = list.translate(&fb, 36.0, mathlist::Style::Display);
-
+pub fn render_layout(
+    fb: backend::FontBackend,
+    node: layout::Node<backend::Glyph>,
+) -> Option<tiny_skia::Pixmap> {
     const DPI: f32 = 96.0;
     let scale = DPI / 72.0;
     let x_padding = 10.0; // padding in pt
@@ -29,12 +27,21 @@ fn render(src: &str) -> Option<tiny_skia::Pixmap> {
     Some(pixmap)
 }
 
+pub fn render_string(src: &str) -> Option<tiny_skia::Pixmap> {
+    let list = parser::parse(src)?;
+
+    let fb = backend::FontBackend::default();
+    let node = list.translate(&fb, 36.0, mathlist::Style::Display);
+
+    render_layout(fb, node)
+}
+
 pub fn encode_png(src: &str) -> Option<Vec<u8>> {
-    let pixmap = render(src)?;
+    let pixmap = render_string(src)?;
     pixmap.encode_png().ok()
 }
 
 pub fn save_png(src: &str, filename: &str) {
-    let pixmap = render(src).unwrap();
+    let pixmap = render_string(src).unwrap();
     pixmap.save_png(filename).unwrap();
 }
