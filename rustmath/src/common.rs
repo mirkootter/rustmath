@@ -1,4 +1,7 @@
+pub mod construction;
 pub mod font_params;
+
+pub use construction::Construction;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Color {
@@ -20,7 +23,7 @@ pub enum FontStyle {
     SuperScript,
 }
 
-pub trait Glyph {
+pub trait Glyph: Clone {
     fn height(&self) -> f32;
     fn depth(&self) -> f32;
     fn advance(&self) -> f32;
@@ -32,19 +35,46 @@ pub trait Glyph {
 pub trait FontBackend {
     type Glyph: Glyph;
 
-    fn get_font(&self, family: Family) -> &dyn Font<Self>;
+    fn get_font(&self, family: Family) -> &dyn Font<Self::Glyph>;
 }
 
-pub trait Font<B: FontBackend> {
-    fn get_fallback_glyph(&self, size: f32, style: FontStyle) -> B::Glyph;
-    fn get_glyph(&self, ch: char, size: f32, style: FontStyle) -> Option<B::Glyph>;
+pub trait Font<G: Glyph> {
+    fn get_fallback_glyph(&self, size: f32, style: FontStyle) -> G;
+    fn get_glyph(&self, ch: char, size: f32, style: FontStyle) -> Option<G>;
     fn get_larger_glyph(
         &self,
         ch: char,
         size: f32,
         style: FontStyle,
         include_italic_correction: bool,
-    ) -> Option<B::Glyph>;
+    ) -> Option<G>;
+
+    fn get_glyph_minwidth(
+        &self,
+        ch: char,
+        size: f32,
+        style: FontStyle,
+        min_width: f32,
+    ) -> Option<G>;
+    fn get_glyph_minheight(
+        &self,
+        ch: char,
+        size: f32,
+        style: FontStyle,
+        min_height: f32,
+    ) -> Option<G>;
+    fn get_glyph_hor_construction(
+        &self,
+        ch: char,
+        size: f32,
+        style: FontStyle,
+    ) -> Option<Construction<G>>;
+    fn get_glyph_vert_construction(
+        &self,
+        ch: char,
+        size: f32,
+        style: FontStyle,
+    ) -> Option<Construction<G>>;
 
     fn calculate_script_params(
         &self,

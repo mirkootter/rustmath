@@ -1,4 +1,4 @@
-use crate::common::{self, Color, FontStyle};
+use crate::common::{self, construction::ConstructionPart, Color, Construction, FontStyle};
 use ttf_parser::{Face, GlyphId};
 
 #[derive(Default)]
@@ -35,6 +35,7 @@ impl ttf_parser::OutlineBuilder for OutlineBuilder {
     }
 }
 
+#[derive(Clone)]
 pub struct Glyph {
     pub id: GlyphId,
     pub height: f32,
@@ -137,9 +138,46 @@ impl<'a> Font<'a> {
             }
         }
     }
+
+    fn get_glyph_minsize(
+        &self,
+        construction: ttf_parser::math::GlyphConstruction<'a>,
+        size: f32,
+        min_size: f32,
+    ) -> Option<Glyph> {
+        let min_size = (min_size * 1000.0 / size - 1e-3).round() as u16;
+        for variant in construction.variants {
+            if variant.advance_measurement >= min_size {
+                return Glyph::new_from_id(&self.face, variant.variant_glyph, size);
+            }
+        }
+
+        None
+    }
+
+    fn get_glyph_construction(
+        &self,
+        min_overlap: f32,
+        assembly: ttf_parser::math::GlyphAssembly<'a>,
+        size: f32,
+    ) -> Construction<Glyph> {
+        let scale = size / 1000.0;
+        let parts = assembly
+            .parts
+            .into_iter()
+            .map(|part| ConstructionPart {
+                glyph: Glyph::new_from_id(&self.face, part.glyph_id, size).unwrap(),
+                size: scale * part.full_advance as f32,
+                max_start_overlap: scale * part.start_connector_length as f32,
+                max_end_overlap: scale * part.end_connector_length as f32,
+                is_extender: part.part_flags.extender(),
+            })
+            .collect();
+        Construction { min_overlap, parts }
+    }
 }
 
-impl<'a> common::Font<FontBackend<'a>> for Font<'a> {
+impl<'a> common::Font<Glyph> for Font<'a> {
     fn get_glyph(
         &self,
         ch: char,
@@ -187,6 +225,74 @@ impl<'a> common::Font<FontBackend<'a>> for Font<'a> {
         }
 
         Some(glyph)
+    }
+
+    fn get_glyph_minwidth(
+        &self,
+        ch: char,
+        size: f32,
+        style: FontStyle,
+        min_width: f32,
+    ) -> Option<<FontBackend<'a> as common::FontBackend>::Glyph> {
+        let glyph_id = self.face.glyph_index(ch)?;
+        let construction = self
+            .face
+            .tables()
+            .math?
+            .variants?
+            .horizontal_constructions
+            .get(glyph_id)?;
+        let size = self.size_for_style(size, style);
+        self.get_glyph_minsize(construction, size, min_width)
+    }
+
+    fn get_glyph_minheight(
+        &self,
+        ch: char,
+        size: f32,
+        style: FontStyle,
+        min_height: f32,
+    ) -> Option<<FontBackend<'a> as common::FontBackend>::Glyph> {
+        let glyph_id = self.face.glyph_index(ch)?;
+        let construction = self
+            .face
+            .tables()
+            .math?
+            .variants?
+            .vertical_constructions
+            .get(glyph_id)?;
+        let size = self.size_for_style(size, style);
+        self.get_glyph_minsize(construction, size, min_height)
+    }
+
+    fn get_glyph_hor_construction(
+        &self,
+        ch: char,
+        size: f32,
+        style: FontStyle,
+    ) -> Option<common::Construction<<FontBackend<'a> as common::FontBackend>::Glyph>> {
+        let glyph_id = self.face.glyph_index(ch)?;
+        let variants = self.face.tables().math?.variants?;
+        let min_overlap = variants.min_connector_overlap;
+        let construction = variants.horizontal_constructions.get(glyph_id)?;
+        let size = self.size_for_style(size, style);
+        let scale = size / 1000.0;
+        Some(self.get_glyph_construction(min_overlap as f32 * scale, construction.assembly?, size))
+    }
+
+    fn get_glyph_vert_construction(
+        &self,
+        ch: char,
+        size: f32,
+        style: FontStyle,
+    ) -> Option<common::Construction<<FontBackend<'a> as common::FontBackend>::Glyph>> {
+        let glyph_id = self.face.glyph_index(ch)?;
+        let variants = self.face.tables().math?.variants?;
+        let min_overlap = variants.min_connector_overlap;
+        let construction = variants.vertical_constructions.get(glyph_id)?;
+        let size = self.size_for_style(size, style);
+        let scale = size / 1000.0;
+        Some(self.get_glyph_construction(min_overlap as f32 * scale, construction.assembly?, size))
     }
 
     fn calculate_script_params(
@@ -303,7 +409,7 @@ pub struct FontBackend<'a> {
 impl<'a> common::FontBackend for FontBackend<'a> {
     type Glyph = Glyph;
 
-    fn get_font(&self, _family: common::Family) -> &dyn common::Font<Self> {
+    fn get_font(&self, _family: common::Family) -> &dyn common::Font<Glyph> {
         &self.font
     }
 }
