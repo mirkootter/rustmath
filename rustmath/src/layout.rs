@@ -1,4 +1,4 @@
-use crate::common::{self, Color};
+use crate::common::{self, Color, Construction, Font, FontStyle};
 
 pub enum Node<Glyph: common::Glyph> {
     Glue(f32),
@@ -119,6 +119,77 @@ impl<Glyph: common::Glyph> Node<Glyph> {
             depth: 0.0,
             advance: width,
         }
+    }
+
+    fn children_from_construction(
+        construction: Construction<Glyph>,
+        min_size: f32,
+        color: Color,
+        center: Option<f32>,
+    ) -> Vec<(f32, Self)> {
+        let (size, iter) = construction.construct(min_size);
+        let mut result = Vec::new();
+        result.reserve_exact(result.len() * 2 + 1);
+
+        if let Some(center) = center {
+            let glue = center - size / 2.0;
+            result.push((0.0, Self::Glue(glue)));
+        }
+
+        for (overlap, part) in iter {
+            if overlap != 0.0 {
+                result.push((0.0, Self::Glue(-overlap)));
+            }
+
+            let glyph = part.glyph.clone();
+            result.push((0.0, Self::Glyph { glyph, color }));
+        }
+
+        result
+    }
+
+    pub fn new_extended_glyph_hor(
+        font: &dyn Font<Glyph>,
+        ch: char,
+        min_width: f32,
+        size: f32,
+        style: FontStyle,
+        color: Color,
+    ) -> Option<Self> {
+        let glyph = font.get_glyph_minwidth(ch, size, style, min_width);
+        if let Some(glyph) = glyph {
+            return Some(Self::Glyph { glyph, color });
+        }
+
+        let construction = font.get_glyph_hor_construction(ch, size, style)?;
+        let children = Self::children_from_construction(construction, min_width, color, None);
+        Some(Self::new_hbox(children))
+    }
+
+    pub fn new_extended_glyph_vert(
+        font: &dyn Font<Glyph>,
+        ch: char,
+        min_height: f32,
+        size: f32,
+        style: FontStyle,
+        color: Color,
+    ) -> Option<Self> {
+        // TODO: Correct 'cramped' param
+        let params = font.calculate_general_params(size, style.into(), false);
+
+        let glyph = font.get_glyph_minheight(ch, size, style, min_height);
+        if let Some(glyph) = glyph {
+            return Some(Self::Glyph { glyph, color });
+        }
+
+        let construction = font.get_glyph_vert_construction(ch, size, style)?;
+        let children = Self::children_from_construction(
+            construction,
+            min_height,
+            color,
+            Some(params.axis_height),
+        );
+        Some(Self::new_vbox(children))
     }
 }
 
