@@ -1,6 +1,6 @@
 use crate::{
     common::Color,
-    mathlist::{Atom, AtomType, Field, MathList},
+    mathlist::{Atom, AtomType, Delimiter, Field, MathList},
 };
 use nom::{
     character::complete,
@@ -57,9 +57,30 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
                         builder.add_symbol(ch, Color::Error);
                     }
                 }
-                Field::MathList(builder.finish())
+                Field::MathList(None, builder.finish(), None)
             }
         }
+    }
+
+    fn delimiter(src: &str) -> IResult<&str, Option<Delimiter>> {
+        let (src, _) = Self::whitespace(src)?;
+        if src.starts_with(".") {
+            return Ok((&src[1..], None));
+        }
+
+        let (remaining, (_, field)) = Self::field(src, false)?;
+        let delim = match field {
+            Field::Empty => None,
+            Field::Symbol(color, ch) => Some(Delimiter { ch, color }),
+            _ => {
+                return Err(nom::Err::Error(nom::error::make_error(
+                    src,
+                    nom::error::ErrorKind::Fail,
+                )))
+            }
+        };
+
+        Ok((remaining, delim))
     }
 
     fn handle_command<'a>(
@@ -75,6 +96,16 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
                 // TODO: ' ' does not work
                 let ch = cmd.chars().next().unwrap();
                 (remaining, Self::handle_char(ch))
+            }
+            "left" => {
+                let (remaining, left) = Self::delimiter(remaining)?;
+                let (remaining, content) = Self::parse(remaining, Some("\\right"))?;
+                let (remaining, _) = Self::whitespace(remaining)?;
+                let (remaining, _) = nom::bytes::complete::tag("\\right")(remaining)?;
+                let (remaining, right) = Self::delimiter(remaining)?;
+
+                let field = Field::MathList(left, content, right);
+                (remaining, (AtomType::Inner, field))
             }
             "frac" => {
                 let (remaining, (_, numerator)) = Self::field(remaining, false)?;
@@ -124,11 +155,15 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
         let parse_char = complete::none_of("}").map(Self::handle_char);
         let parse_broken_char =
             nom::bytes::complete::tag("{").map(|_| (AtomType::Ord, Self::make_error_field(&["{"])));
-        let parse_group =
-            delimited(complete::char('{'), Self::parse, complete::char('}')).map(|ml| {
-                let field = Field::MathList(ml);
-                (AtomType::Ord, field)
-            });
+        let parse_group = delimited(
+            complete::char('{'),
+            |src| Self::parse(src, Some("}")),
+            complete::char('}'),
+        )
+        .map(|ml| {
+            let field = Field::MathList(None, ml, None);
+            (AtomType::Ord, field)
+        });
 
         let mut parser =
             nom::branch::alt((parse_group, parse_command, parse_broken_char, parse_char));
@@ -181,14 +216,22 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
         Ok((src, atom))
     }
 
-    pub fn parse(src: &str) -> IResult<&str, MathList<Glyph>> {
+    pub fn parse<'a>(
+        src: &'a str,
+        expected_stop: Option<&'_ str>,
+    ) -> IResult<&'a str, MathList<Glyph>> {
         let mut builder = crate::mathlist::Builder::default();
         let mut src = src;
 
         loop {
             let (remaining, _) = Self::whitespace(src)?;
-            if remaining.is_empty() || remaining.starts_with("}") {
+            if remaining.is_empty() {
                 break;
+            }
+            if let Some(expected_stop) = expected_stop {
+                if remaining.starts_with(expected_stop) {
+                    break;
+                }
             }
 
             let (remaining, atom) = Self::atom(remaining)?;
@@ -203,5 +246,5 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
 }
 
 pub fn parse<G: crate::common::Glyph>(src: &str) -> Option<MathList<G>> {
-    ParserImp::parse(src).ok().map(|r| r.1)
+    ParserImp::parse(src, None).ok().map(|r| r.1)
 }

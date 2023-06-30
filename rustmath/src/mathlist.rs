@@ -139,11 +139,47 @@ pub struct Atom<Glyph: common::Glyph> {
     pub superscript: Field<Glyph>,
 }
 
+pub struct Delimiter {
+    pub ch: char,
+    pub color: Color,
+}
+
+impl Delimiter {
+    pub fn translate<G: common::Glyph>(
+        &self,
+        font: &dyn crate::common::Font<G>,
+        content: &crate::layout::Node<G>,
+        size: f32,
+        style: Style,
+    ) -> crate::layout::Node<G> {
+        let params = font.calculate_general_params(size, style.into(), style.is_cramped());
+        let half_height = content.height(false) - params.axis_height;
+        let half_height = half_height.max(content.depth() + params.axis_height);
+
+        let min_height = 2.0 * half_height.max(0.0);
+        let result = crate::layout::Node::new_extended_glyph_vert(
+            font,
+            self.ch,
+            min_height,
+            size,
+            style.into(),
+            self.color,
+        );
+        result.unwrap_or_else(|| {
+            let glyph = font.get_fallback_glyph(size, style.into());
+            crate::layout::Node::Glyph {
+                glyph,
+                color: Color::Error,
+            }
+        })
+    }
+}
+
 pub enum Field<Glyph: common::Glyph> {
     Empty,
     Symbol(Color, char),
     Fallback(Color),
-    MathList(MathList<Glyph>),
+    MathList(Option<Delimiter>, MathList<Glyph>, Option<Delimiter>),
     Fraction(Box<Self>, Box<Self>),
     Layout {
         translation: crate::layout::Node<Glyph>,
@@ -388,10 +424,35 @@ impl<Glyph: common::Glyph> Field<Glyph> {
                     italic_correction,
                 };
             }
-            Field::MathList(list) => {
+            Field::MathList(left, list, right) => {
                 let mut taken_list = MathList(Default::default());
                 std::mem::swap(&mut taken_list, list);
-                let translation = taken_list.translate(backend, size, style);
+                let mut translation = taken_list.translate(backend, size, style);
+
+                if left.is_some() || right.is_some() {
+                    let mut children = Vec::new();
+                    let font = backend.get_font(Family::Italic);
+
+                    let left = left
+                        .as_ref()
+                        .map(|del| del.translate(font, &translation, size, style));
+                    let right = right
+                        .as_ref()
+                        .map(|del| del.translate(font, &translation, size, style));
+
+                    if let Some(left) = left {
+                        children.push((0.0, left));
+                    }
+
+                    children.push((0.0, translation));
+
+                    if let Some(right) = right {
+                        children.push((0.0, right));
+                    }
+
+                    translation = crate::layout::Node::new_hbox(children);
+                }
+
                 *self = Field::Layout {
                     translation,
                     italic_correction: 0.0,
