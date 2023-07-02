@@ -5,10 +5,12 @@ use crate::{
 use nom::{
     character::complete,
     sequence::{delimited, preceded},
-    IResult, Parser,
+    Parser,
 };
 use std::marker::PhantomData;
 mod tables;
+
+type ParseResult<'a, T> = nom::IResult<&'a str, T>;
 
 enum Command<'a> {
     Named(&'a str),
@@ -20,7 +22,7 @@ struct ParserImp<Glyph: crate::common::Glyph> {
 }
 
 impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
-    fn whitespace(src: &str) -> IResult<&str, ()> {
+    fn whitespace(src: &str) -> ParseResult<()> {
         use nom::InputTakeAtPosition;
         let (src, _) = src.split_at_position_complete(|ch| !ch.is_whitespace())?;
         Ok((src, ()))
@@ -62,7 +64,7 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
         }
     }
 
-    fn delimiter(src: &str) -> IResult<&str, Option<Delimiter>> {
+    fn delimiter(src: &str) -> ParseResult<Option<Delimiter>> {
         let (src, _) = Self::whitespace(src)?;
         if src.starts_with(".") {
             return Ok((&src[1..], None));
@@ -86,7 +88,7 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
     fn handle_command<'a>(
         cmd: &'_ str,
         remaining: &'a str,
-    ) -> IResult<&'a str, (AtomType, Field<Glyph>)> {
+    ) -> ParseResult<'a, (AtomType, Field<Glyph>)> {
         if let Some(ch) = tables::command_to_char(cmd) {
             return Ok((remaining, Self::handle_char(ch)));
         }
@@ -125,7 +127,7 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
         })
     }
 
-    fn parse_command(src: &str, with_args: bool) -> IResult<&str, (AtomType, Field<Glyph>)> {
+    fn parse_command(src: &str, with_args: bool) -> ParseResult<(AtomType, Field<Glyph>)> {
         let (src, cmd) = preceded(
             complete::char('\\'),
             nom::branch::alt((
@@ -148,7 +150,7 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
         }
     }
 
-    fn field(src: &str, with_args: bool) -> IResult<&str, (AtomType, Field<Glyph>)> {
+    fn field(src: &str, with_args: bool) -> ParseResult<(AtomType, Field<Glyph>)> {
         let (src, _) = Self::whitespace(src)?;
 
         let parse_command = |src| Self::parse_command(src, with_args);
@@ -171,7 +173,7 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
         parser(src)
     }
 
-    pub fn atom(src: &str) -> IResult<&str, Atom<Glyph>> {
+    pub fn atom(src: &str) -> ParseResult<Atom<Glyph>> {
         let (src, (atom_type, nucleus)) = Self::field(src, true)?;
         let (mut src, _) = Self::whitespace(src)?;
 
@@ -219,7 +221,7 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
     pub fn parse<'a>(
         src: &'a str,
         expected_stop: Option<&'_ str>,
-    ) -> IResult<&'a str, MathList<Glyph>> {
+    ) -> ParseResult<'a, MathList<Glyph>> {
         let mut builder = crate::mathlist::Builder::default();
         let mut src = src;
 
