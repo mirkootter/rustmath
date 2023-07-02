@@ -8,9 +8,13 @@ use nom::{
     Parser,
 };
 use std::marker::PhantomData;
+
+use self::error::{make_recoverable_error, ErrorKind};
+
+mod error;
 mod tables;
 
-type ParseResult<'a, T> = nom::IResult<&'a str, T>;
+type ParseResult<'a, T> = nom::IResult<&'a str, T, error::Error<&'a str>>;
 
 enum Command<'a> {
     Named(&'a str),
@@ -74,12 +78,7 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
         let delim = match field {
             Field::Empty => None,
             Field::Symbol(color, ch) => Some(Delimiter { ch, color }),
-            _ => {
-                return Err(nom::Err::Error(nom::error::make_error(
-                    src,
-                    nom::error::ErrorKind::Fail,
-                )))
-            }
+            _ => return make_recoverable_error(src, ErrorKind::InvalidDelimiter),
         };
 
         Ok((remaining, delim))
