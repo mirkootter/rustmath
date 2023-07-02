@@ -1,6 +1,7 @@
 pub enum ErrorKind {
     FromNom(nom::error::ErrorKind),
     InvalidDelimiter,
+    UnsupportedCommand,
 }
 
 impl From<nom::error::ErrorKind> for ErrorKind {

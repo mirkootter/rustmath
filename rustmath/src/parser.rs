@@ -119,10 +119,7 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
                 let (remaining, (_, field)) = Self::field(remaining, false)?;
                 (remaining, (AtomType::Op, field))
             }
-            _ => {
-                let field = Self::make_error_field(&["\\", cmd]);
-                (remaining, (AtomType::Ord, field))
-            }
+            _ => return make_recoverable_error(remaining, ErrorKind::UnsupportedCommand),
         })
     }
 
@@ -141,12 +138,16 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
             Command::SingleChar(ch) => ch.encode_utf8(&mut buf),
         };
 
-        if with_args {
+        let result = if with_args {
             Self::handle_command(cmd, src)
         } else {
-            let (_, result) = Self::handle_command(cmd, "")?;
-            Ok((src, result))
-        }
+            Self::handle_command(cmd, "").map(|(_, result)| (src, result))
+        };
+
+        result.or_else(|_| {
+            let field = Self::make_error_field(&["\\", cmd]);
+            Ok((src, (AtomType::Ord, field)))
+        })
     }
 
     fn field(src: &str, with_args: bool) -> ParseResult<(AtomType, Field<Glyph>)> {
