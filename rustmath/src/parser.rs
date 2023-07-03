@@ -154,9 +154,14 @@ impl<Glyph: crate::common::Glyph> ParserImp<Glyph> {
         let (src, _) = Self::whitespace(src)?;
 
         let parse_command = |src| Self::parse_command(src, with_args);
-        let parse_char = complete::none_of("}").map(Self::handle_char);
-        let parse_broken_char =
-            nom::bytes::complete::tag("{").map(|_| (AtomType::Ord, Self::make_error_field(&["{"])));
+        let parse_char = complete::anychar.map(Self::handle_char);
+        let parse_broken_char = complete::one_of("{}").map(|ch| {
+            let mut buf = [0; 4];
+            (
+                AtomType::Ord,
+                Self::make_error_field(&[ch.encode_utf8(&mut buf)]),
+            )
+        });
         let parse_group = delimited(
             complete::char('{'),
             |src| Self::parse(src, Some("}")),
