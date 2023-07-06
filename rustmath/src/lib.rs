@@ -5,7 +5,7 @@ pub mod mathlist;
 pub mod parser;
 
 #[cfg(test)]
-mod test_generated_sources;
+mod tests;
 
 pub fn render_layout(
     fb: backend::FontBackend,

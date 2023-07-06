@@ -315,7 +315,7 @@ mod data {
 }
 
 fn parse_math_class_txt(d: &mut data::Data) {
-    let entries = include_str!("../../rustmath/data/MathClass-15.txt")
+    let entries = include_str!("../../../rustmath/data/MathClass-15.txt")
         .lines()
         .filter(|line| !line.is_empty() && !line.starts_with("#"))
         .map(MathListEntry::parse);
@@ -326,7 +326,7 @@ fn parse_math_class_txt(d: &mut data::Data) {
 }
 
 fn parse_math_table_tex(d: &mut data::Data) {
-    let entries = include_str!("../data/unicode-math-table.tex")
+    let entries = include_str!("../../data/unicode-math-table.tex")
         .lines()
         .filter(|line| !line.is_empty() && !line.starts_with("%"))
         .map(MathTableRow::parse);
@@ -358,6 +358,6 @@ fn generate() -> Result<String, core::fmt::Error> {
 #[test]
 fn test_generated_sources() {
     let generated = generate().unwrap();
-    let found = include_str!("./parser/tables/generated.rs");
+    let found = include_str!("../parser/tables/generated.rs");
     assert_eq!(generated, found);
 }
