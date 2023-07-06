@@ -257,44 +257,59 @@ mod data {
             self.m.insert(ch..=ch, math_class);
         }
 
-        pub fn print_classification(&self) {
-            println!(
+        pub fn print_classification(&self, out: &mut impl core::fmt::Write) -> core::fmt::Result {
+            writeln!(
+                out,
                 "pub static CHAR_CLASSIFICATION: [(u32, CharClassification); {}] = [",
                 self.m.len()
-            );
+            )?;
 
             for (range, &mathclass) in self.m.iter() {
                 let start = *range.start();
 
                 if start == 0 {
-                    println!("    (0, CharClassification::{}),", mathclass.classify());
+                    writeln!(
+                        out,
+                        "    (0, CharClassification::{}),",
+                        mathclass.classify()
+                    )?;
                 } else if mathclass == super::MathClass::Ignore {
-                    println!(
+                    writeln!(
+                        out,
                         "    ('{}' as u32 + 1, CharClassification::{}),",
                         char::from_u32(start - 1).unwrap().escape_debug(),
                         mathclass.classify()
-                    );
+                    )?;
                 } else {
-                    println!(
+                    writeln!(
+                        out,
                         "    ('{}' as u32, CharClassification::{}),",
                         char::from_u32(start).unwrap().escape_debug(),
                         mathclass.classify()
-                    );
+                    )?;
                 }
             }
 
-            println!("];");
+            writeln!(out, "];")?;
+
+            Ok(())
         }
 
-        pub fn print_commands(&self) {
-            println!(
+        pub fn print_commands(&self, out: &mut impl core::fmt::Write) -> core::fmt::Result {
+            writeln!(
+                out,
                 "pub static CHAR_COMMANDS: [(&'static str, char); {}] = [",
                 self.commands.len()
-            );
+            )?;
             for (cmd, ch) in &self.commands {
-                println!("    (\"{}\", '{}'),", cmd.escape_debug(), ch.escape_debug());
+                writeln!(
+                    out,
+                    "    (\"{}\", '{}'),",
+                    cmd.escape_debug(),
+                    ch.escape_debug()
+                )?;
             }
-            println!("];");
+            writeln!(out, "];")
         }
     }
 }
@@ -321,20 +336,28 @@ fn parse_math_table_tex(d: &mut data::Data) {
     }
 }
 
-fn generate() {
+fn generate() -> Result<String, core::fmt::Error> {
+    use core::fmt::Write;
+
     let mut d = data::Data::new();
     parse_math_class_txt(&mut d);
     parse_math_table_tex(&mut d);
 
-    println!("use super::CharClassification;");
-    println!();
+    let mut generated = String::new();
 
-    d.print_classification();
-    println!();
-    d.print_commands();
+    writeln!(&mut generated, "use super::CharClassification;")?;
+    writeln!(&mut generated)?;
+
+    d.print_classification(&mut generated)?;
+    writeln!(&mut generated)?;
+    d.print_commands(&mut generated)?;
+
+    Ok(generated)
 }
 
 #[test]
 fn test_generated_sources() {
-    generate();
+    let generated = generate().unwrap();
+    let found = include_str!("./parser/tables/generated.rs");
+    assert_eq!(generated, found);
 }
