@@ -261,8 +261,8 @@ mod data {
 
         pub fn add_range(&mut self, sel: super::Selector, mathclass: super::MathClass) {
             match sel {
-                crate::Selector::CodePoint(ch) => self.add_char_range(ch..=ch, mathclass),
-                crate::Selector::Range(a, b) => self.add_char_range(a..=b, mathclass),
+                super::Selector::CodePoint(ch) => self.add_char_range(ch..=ch, mathclass),
+                super::Selector::Range(a, b) => self.add_char_range(a..=b, mathclass),
             }
         }
 
@@ -337,7 +337,7 @@ fn parse_math_table_tex(d: &mut data::Data) {
     }
 }
 
-fn main() {
+fn generate() {
     let mut d = data::Data::new();
     parse_math_class_txt(&mut d);
     parse_math_table_tex(&mut d);
@@ -348,4 +348,9 @@ fn main() {
     d.print_classification();
     println!();
     d.print_commands();
+}
+
+#[test]
+fn test_generated_sources() {
+    generate();
 }
