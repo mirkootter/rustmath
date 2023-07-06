@@ -22,6 +22,8 @@ jobs:
     - uses: jetli/trunk-action@v0.4.0
       with:
         version: 'latest'
+    - name: Test
+      run: cargo test
     - name: Build
       run: trunk build --release --public-url /math-demo demo/index.html
     - name: setup ssh keys

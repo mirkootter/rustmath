@@ -4,6 +4,9 @@ pub mod layout;
 pub mod mathlist;
 pub mod parser;
 
+#[cfg(test)]
+mod test_generated_sources;
+
 pub fn render_layout(
     fb: backend::FontBackend,
     node: layout::Node<backend::Glyph>,

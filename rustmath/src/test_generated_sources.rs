@@ -6,22 +6,6 @@ pub enum Selector {
     Range(char, char),
 }
 
-impl Selector {
-    pub fn start(&self) -> char {
-        match self {
-            Selector::CodePoint(ch) => *ch,
-            Selector::Range(ch, _) => *ch,
-        }
-    }
-
-    pub fn stop(&self) -> char {
-        match self {
-            Selector::CodePoint(ch) => *ch,
-            Selector::Range(_, ch) => *ch,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MathClass {
     Normal,
@@ -261,8 +245,8 @@ mod data {
 
         pub fn add_range(&mut self, sel: super::Selector, mathclass: super::MathClass) {
             match sel {
-                crate::Selector::CodePoint(ch) => self.add_char_range(ch..=ch, mathclass),
-                crate::Selector::Range(a, b) => self.add_char_range(a..=b, mathclass),
+                super::Selector::CodePoint(ch) => self.add_char_range(ch..=ch, mathclass),
+                super::Selector::Range(a, b) => self.add_char_range(a..=b, mathclass),
             }
         }
 
@@ -273,44 +257,59 @@ mod data {
             self.m.insert(ch..=ch, math_class);
         }
 
-        pub fn print_classification(&self) {
-            println!(
+        pub fn print_classification(&self, out: &mut impl core::fmt::Write) -> core::fmt::Result {
+            writeln!(
+                out,
                 "pub static CHAR_CLASSIFICATION: [(u32, CharClassification); {}] = [",
                 self.m.len()
-            );
+            )?;
 
             for (range, &mathclass) in self.m.iter() {
                 let start = *range.start();
 
                 if start == 0 {
-                    println!("    (0, CharClassification::{}),", mathclass.classify());
+                    writeln!(
+                        out,
+                        "    (0, CharClassification::{}),",
+                        mathclass.classify()
+                    )?;
                 } else if mathclass == super::MathClass::Ignore {
-                    println!(
+                    writeln!(
+                        out,
                         "    ('{}' as u32 + 1, CharClassification::{}),",
                         char::from_u32(start - 1).unwrap().escape_debug(),
                         mathclass.classify()
-                    );
+                    )?;
                 } else {
-                    println!(
+                    writeln!(
+                        out,
                         "    ('{}' as u32, CharClassification::{}),",
                         char::from_u32(start).unwrap().escape_debug(),
                         mathclass.classify()
-                    );
+                    )?;
                 }
             }
 
-            println!("];");
+            writeln!(out, "];")?;
+
+            Ok(())
         }
 
-        pub fn print_commands(&self) {
-            println!(
+        pub fn print_commands(&self, out: &mut impl core::fmt::Write) -> core::fmt::Result {
+            writeln!(
+                out,
                 "pub static CHAR_COMMANDS: [(&'static str, char); {}] = [",
                 self.commands.len()
-            );
+            )?;
             for (cmd, ch) in &self.commands {
-                println!("    (\"{}\", '{}'),", cmd.escape_debug(), ch.escape_debug());
+                writeln!(
+                    out,
+                    "    (\"{}\", '{}'),",
+                    cmd.escape_debug(),
+                    ch.escape_debug()
+                )?;
             }
-            println!("];");
+            writeln!(out, "];")
         }
     }
 }
@@ -327,7 +326,7 @@ fn parse_math_class_txt(d: &mut data::Data) {
 }
 
 fn parse_math_table_tex(d: &mut data::Data) {
-    let entries = include_str!("../../rustmath/data/unicode-math-table.tex")
+    let entries = include_str!("../data/unicode-math-table.tex")
         .lines()
         .filter(|line| !line.is_empty() && !line.starts_with("%"))
         .map(MathTableRow::parse);
@@ -337,15 +336,28 @@ fn parse_math_table_tex(d: &mut data::Data) {
     }
 }
 
-fn main() {
+fn generate() -> Result<String, core::fmt::Error> {
+    use core::fmt::Write;
+
     let mut d = data::Data::new();
     parse_math_class_txt(&mut d);
     parse_math_table_tex(&mut d);
 
-    println!("use super::CharClassification;");
-    println!();
+    let mut generated = String::new();
 
-    d.print_classification();
-    println!();
-    d.print_commands();
+    writeln!(&mut generated, "use super::CharClassification;")?;
+    writeln!(&mut generated)?;
+
+    d.print_classification(&mut generated)?;
+    writeln!(&mut generated)?;
+    d.print_commands(&mut generated)?;
+
+    Ok(generated)
+}
+
+#[test]
+fn test_generated_sources() {
+    let generated = generate().unwrap();
+    let found = include_str!("./parser/tables/generated.rs");
+    assert_eq!(generated, found);
 }
