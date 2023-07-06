@@ -6,22 +6,6 @@ pub enum Selector {
     Range(char, char),
 }
 
-impl Selector {
-    pub fn start(&self) -> char {
-        match self {
-            Selector::CodePoint(ch) => *ch,
-            Selector::Range(ch, _) => *ch,
-        }
-    }
-
-    pub fn stop(&self) -> char {
-        match self {
-            Selector::CodePoint(ch) => *ch,
-            Selector::Range(_, ch) => *ch,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MathClass {
     Normal,
@@ -327,7 +311,7 @@ fn parse_math_class_txt(d: &mut data::Data) {
 }
 
 fn parse_math_table_tex(d: &mut data::Data) {
-    let entries = include_str!("../../rustmath/data/unicode-math-table.tex")
+    let entries = include_str!("../data/unicode-math-table.tex")
         .lines()
         .filter(|line| !line.is_empty() && !line.starts_with("%"))
         .map(MathTableRow::parse);
