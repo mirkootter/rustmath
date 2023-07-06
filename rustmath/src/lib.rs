@@ -36,12 +36,41 @@ pub fn render_string(src: &str) -> Option<tiny_skia::Pixmap> {
     render_layout(fb, node)
 }
 
-pub fn encode_png(src: &str) -> Option<Vec<u8>> {
+pub fn encode_png(src: &str, include_meta_data: bool) -> Option<Vec<u8>> {
     let pixmap = render_string(src)?;
-    pixmap.encode_png().ok()
+
+    let mut data = Vec::new();
+    data.reserve_exact(pixmap.data().len());
+
+    for pixel in pixmap.pixels() {
+        let c = pixel.demultiply();
+        data.push(c.red());
+        data.push(c.green());
+        data.push(c.blue());
+        data.push(c.alpha());
+    }
+
+    let mut result = Vec::new();
+    {
+        let mut encoder = png::Encoder::new(&mut result, pixmap.width(), pixmap.height());
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        if include_meta_data {
+            encoder
+                .add_itxt_chunk("source".to_owned(), "rustmath".to_owned())
+                .ok()?;
+            encoder
+                .add_itxt_chunk("rustmath_src".to_owned(), src.to_owned())
+                .ok()?;
+        }
+        let mut writer = encoder.write_header().ok()?;
+        writer.write_image_data(&data).ok()?;
+    }
+
+    Some(result)
 }
 
-pub fn save_png(src: &str, filename: &str) {
-    let pixmap = render_string(src).unwrap();
-    pixmap.save_png(filename).unwrap();
+pub fn save_png(src: &str, include_meta_data: bool, filename: &str) {
+    let data = encode_png(src, include_meta_data).unwrap();
+    std::fs::write(filename, data).unwrap();
 }

@@ -3,8 +3,8 @@
 use base64::Engine;
 use dioxus::prelude::*;
 
-fn generate_image_url(src: &str) -> Option<String> {
-    let image_data = rustmath::encode_png(src)?;
+fn generate_image_url(src: &str, include_metadata: bool) -> Option<String> {
+    let image_data = rustmath::encode_png(src, include_metadata)?;
 
     let prefix = "data:image/png;base64,".to_string();
     let encoded = base64::engine::general_purpose::STANDARD.encode(&image_data);
@@ -18,9 +18,11 @@ fn main() {
 
 fn App(cx: Scope) -> Element {
     let src = use_state(cx, || None::<String>);
+    let include_metadata = use_state(cx, || true);
+
     let image_url = (*src.current())
         .as_ref()
-        .and_then(|src| generate_image_url(src));
+        .and_then(|src| generate_image_url(src, *include_metadata.current()));
 
     cx.render(rsx! {
         section {
@@ -38,6 +40,18 @@ fn App(cx: Scope) -> Element {
                     }
                 },
                 placeholder: "Enter math code here"
+            }
+        }
+        div {
+            input {
+                "type": "checkbox",
+                "checked": "{include_metadata}",
+                onclick: move |_| include_metadata.set(!include_metadata),
+                id: "include_metadata"
+            }
+            label {
+                "for": "include_metadata",
+                "Include source as metadata"
             }
         }
         div {
