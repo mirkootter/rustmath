@@ -4,7 +4,7 @@ use base64::Engine;
 use dioxus::prelude::*;
 
 fn generate_image_url(src: &str) -> Option<String> {
-    let image_data = rustmath::encode_png(src)?;
+    let image_data = rustmath::encode_png(src, true)?;
 
     let prefix = "data:image/png;base64,".to_string();
     let encoded = base64::engine::general_purpose::STANDARD.encode(&image_data);
