@@ -14,9 +14,16 @@ async fn read_uploaded_file(ev: web_sys::DragEvent) -> Option<Vec<u8>> {
     let array_buffer = JsFuture::from(file.array_buffer()).await.ok()?;
     let array_buffer = js_sys::ArrayBuffer::unchecked_from_js(array_buffer);
 
-    gloo_console::log!("Uploaded file", array_buffer);
+    let arr = js_sys::Uint8Array::new(&array_buffer);
+    let len = arr.byte_length() as usize;
 
-    Some(Vec::new())
+    let mut result = Vec::with_capacity(len);
+    unsafe {
+        result.set_len(len);
+    }
+    arr.copy_to(&mut result);
+
+    Some(result)
 }
 
 #[derive(Default)]
@@ -61,7 +68,16 @@ impl Inner {
             elem_owned.set_class_name("");
 
             let task = async {
-                read_uploaded_file(ev).await;
+                if let Some(data) = read_uploaded_file(ev).await {
+                    if let Some(source) = rustmath::get_source_from_png_metadata(&data) {
+                        let window = web_sys::window().unwrap();
+                        let _ = window.alert_with_message(&source);
+                        // TODO
+                    } else {
+                        let window = web_sys::window().unwrap();
+                        let _ = window.alert_with_message("Unsupported file.");
+                    }
+                }
             };
             wasm_bindgen_futures::spawn_local(task);
         });
