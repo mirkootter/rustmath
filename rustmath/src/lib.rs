@@ -73,6 +73,30 @@ pub fn encode_png(src: &str, include_meta_data: bool) -> Option<Vec<u8>> {
     Some(result)
 }
 
+pub fn get_source_from_png_metadata(png: &[u8]) -> Option<String> {
+    let decoder = png::Decoder::new(png);
+    let reader = decoder.read_info().ok()?;
+
+    let mut source = None;
+    let mut rustmath_source = None;
+
+    for text_chunk in &reader.info().utf8_text {
+        match &text_chunk.keyword as &str {
+            "source" => source = Some(text_chunk.get_text().ok()?),
+            "rustmath_src" => rustmath_source = Some(text_chunk.get_text().ok()?),
+            _ => {}
+        }
+    }
+
+    let source = source?;
+
+    if &source != "rustmath" {
+        return None;
+    }
+
+    rustmath_source
+}
+
 pub fn save_png(src: &str, include_meta_data: bool, filename: &str) {
     let data = encode_png(src, include_meta_data).unwrap();
     std::fs::write(filename, data).unwrap();

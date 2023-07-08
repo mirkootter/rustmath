@@ -9,12 +9,35 @@ body {
     line-height: 1.4em;
     background: #f5f5f5;
     color: #111111;
-    min-width: 230px;
-    max-width: 550px;
-    margin: 0 auto;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-weight: 300;
+}
+
+#rm-app-container {
+    min-width: 230px;
+    max-width: 550px;
+    margin: 0 auto;
+}
+
+#rm-dropzone {
+    position: absolute;
+    z-index: -1;
+    padding: 16px;
+    display: flex;
+    left: 0px;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+
+    &.active::after {
+        content: "";
+        display: inline-block;
+        flex-grow: 1;
+        border: 3px dashed blue;
+        background-color: #ced4e799;
+        z-index: 1000;
+    }
 }
 
 .app {
