@@ -22,13 +22,17 @@ fn App(cx: Scope) -> Element {
     let src = use_state(cx, || None::<String>);
     let include_metadata = use_state(cx, || true);
 
-    let _uploader = uploader::use_uploader(cx);
+    let uploader = uploader::use_uploader(cx);
 
     let image_url = (*src.current())
         .as_ref()
         .and_then(|src| generate_image_url(src, *include_metadata.current()));
 
     cx.render(rsx! {
+        div {
+            id: "rm-dropzone",
+            onmounted: move |cx| { uploader.mount(&cx.inner()); },
+        }
         div {
             id: "rm-app-container",
             section {
