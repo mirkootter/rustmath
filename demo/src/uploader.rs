@@ -1,4 +1,7 @@
-use dioxus::{core::ScopeState, prelude::MountedData};
+use dioxus::{
+    core::ScopeState,
+    prelude::{MountedData, UseState},
+};
 use wasm_bindgen::{prelude::Closure, JsCast};
 use wasm_bindgen_futures::JsFuture;
 
@@ -26,19 +29,27 @@ async fn read_uploaded_file(ev: web_sys::DragEvent) -> Option<Vec<u8>> {
     Some(result)
 }
 
-#[derive(Default)]
 pub struct UseUploader {
-    _inner: Option<Inner>,
+    inner: Option<Inner>,
+    src: Option<UseState<Option<String>>>,
 }
 
 impl UseUploader {
+    pub fn new(src: UseState<Option<String>>) -> Self {
+        UseUploader {
+            inner: None,
+            src: Some(src),
+        }
+    }
+
     pub fn mount(&mut self, data: &MountedData) {
-        assert!(self._inner.is_none());
+        assert!(self.inner.is_none());
 
         let element = data.get_raw_element().unwrap();
         let element = element.downcast_ref::<web_sys::Element>().unwrap().clone();
 
-        self._inner = Some(Inner::new(element));
+        let src = self.src.take().unwrap();
+        self.inner = Some(Inner::new(element, src));
     }
 }
 
@@ -50,7 +61,7 @@ struct Inner {
 }
 
 impl Inner {
-    pub fn new(element: web_sys::Element) -> Self {
+    pub fn new(element: web_sys::Element, src: UseState<Option<String>>) -> Self {
         let elem_owned = element.clone();
         let dragover = Closure::new(move |ev: web_sys::DragEvent| {
             ev.prevent_default();
@@ -67,12 +78,11 @@ impl Inner {
             ev.prevent_default();
             elem_owned.set_class_name("");
 
-            let task = async {
+            let src = src.clone();
+            let task = async move {
                 if let Some(data) = read_uploaded_file(ev).await {
                     if let Some(source) = rustmath::get_source_from_png_metadata(&data) {
-                        let window = web_sys::window().unwrap();
-                        let _ = window.alert_with_message(&source);
-                        // TODO
+                        src.set(Some(source));
                     } else {
                         let window = web_sys::window().unwrap();
                         let _ = window.alert_with_message("Unsupported file.");
@@ -119,6 +129,9 @@ impl Drop for Inner {
     }
 }
 
-pub fn use_uploader<'a>(cx: &'a ScopeState) -> &'a mut UseUploader {
-    cx.use_hook(|| UseUploader::default())
+pub fn use_uploader<'a>(
+    cx: &'a ScopeState,
+    src: &'_ UseState<Option<String>>,
+) -> &'a mut UseUploader {
+    cx.use_hook(|| UseUploader::new(src.clone()))
 }

@@ -22,11 +22,16 @@ fn App(cx: Scope) -> Element {
     let src = use_state(cx, || None::<String>);
     let include_metadata = use_state(cx, || true);
 
-    let uploader = uploader::use_uploader(cx);
+    let uploader = uploader::use_uploader(cx, src);
 
     let image_url = (*src.current())
         .as_ref()
         .and_then(|src| generate_image_url(src, *include_metadata.current()));
+
+    let input_value = match src.as_ref() {
+        Some(src) => src,
+        None => "",
+    };
 
     cx.render(rsx! {
         div {
@@ -42,6 +47,7 @@ fn App(cx: Scope) -> Element {
                 }
                 input {
                     "type": "text",
+                    value: input_value,
                     oninput: move |event| {
                         if event.data.value.is_empty() {
                             src.set(None);
