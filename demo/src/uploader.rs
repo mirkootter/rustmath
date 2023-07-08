@@ -1,5 +1,23 @@
 use dioxus::{core::ScopeState, prelude::MountedData};
 use wasm_bindgen::{prelude::Closure, JsCast};
+use wasm_bindgen_futures::JsFuture;
+
+async fn read_uploaded_file(ev: web_sys::DragEvent) -> Option<Vec<u8>> {
+    let data_transfer = ev.data_transfer()?;
+    let files = data_transfer.files()?;
+
+    if files.length() != 1 {
+        return None;
+    }
+
+    let file = files.get(0)?;
+    let array_buffer = JsFuture::from(file.array_buffer()).await.ok()?;
+    let array_buffer = js_sys::ArrayBuffer::unchecked_from_js(array_buffer);
+
+    gloo_console::log!("Uploaded file", array_buffer);
+
+    Some(Vec::new())
+}
 
 #[derive(Default)]
 pub struct UseUploader {
@@ -19,30 +37,69 @@ impl UseUploader {
 
 struct Inner {
     element: web_sys::Element,
-    handler: Closure<dyn Fn()>,
+    dragover: Closure<dyn Fn(web_sys::DragEvent)>,
+    dragleave: Closure<dyn Fn(web_sys::Event)>,
+    drop: Closure<dyn Fn(web_sys::DragEvent)>,
 }
 
 impl Inner {
     pub fn new(element: web_sys::Element) -> Self {
-        let window = web_sys::window().unwrap();
+        let elem_owned = element.clone();
+        let dragover = Closure::new(move |ev: web_sys::DragEvent| {
+            ev.prevent_default();
+            elem_owned.set_class_name("active");
+        });
 
-        let handler = Closure::new(move || {
-            let _ = window.alert_with_message("Clicked");
+        let elem_owned = element.clone();
+        let dragleave = Closure::new(move |_| {
+            elem_owned.set_class_name("");
+        });
+
+        let elem_owned = element.clone();
+        let drop = Closure::new(move |ev: web_sys::DragEvent| {
+            ev.prevent_default();
+            elem_owned.set_class_name("");
+
+            let task = async {
+                read_uploaded_file(ev).await;
+            };
+            wasm_bindgen_futures::spawn_local(task);
         });
 
         element
-            .add_event_listener_with_callback("click", handler.as_ref().unchecked_ref())
+            .add_event_listener_with_callback("dragover", dragover.as_ref().unchecked_ref())
             .unwrap();
 
-        Self { element, handler }
+        element
+            .add_event_listener_with_callback("dragleave", dragleave.as_ref().unchecked_ref())
+            .unwrap();
+
+        element
+            .add_event_listener_with_callback("drop", drop.as_ref().unchecked_ref())
+            .unwrap();
+
+        Self {
+            element,
+            dragover,
+            dragleave,
+            drop,
+        }
     }
 }
 
 impl Drop for Inner {
     fn drop(&mut self) {
+        let _ = self.element.remove_event_listener_with_callback(
+            "dragover",
+            self.dragover.as_ref().unchecked_ref(),
+        );
+        let _ = self.element.remove_event_listener_with_callback(
+            "dragleave",
+            self.dragleave.as_ref().unchecked_ref(),
+        );
         let _ = self
             .element
-            .remove_event_listener_with_callback("click", self.handler.as_ref().unchecked_ref());
+            .remove_event_listener_with_callback("drop", self.drop.as_ref().unchecked_ref());
     }
 }
 
