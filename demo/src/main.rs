@@ -3,6 +3,8 @@
 use base64::Engine;
 use dioxus::prelude::*;
 
+mod uploader;
+
 fn generate_image_url(src: &str, include_metadata: bool) -> Option<String> {
     let image_data = rustmath::encode_png(src, include_metadata)?;
 
@@ -19,6 +21,8 @@ fn main() {
 fn App(cx: Scope) -> Element {
     let src = use_state(cx, || None::<String>);
     let include_metadata = use_state(cx, || true);
+
+    let _uploader = uploader::use_uploader(cx);
 
     let image_url = (*src.current())
         .as_ref()
