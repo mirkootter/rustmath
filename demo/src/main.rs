@@ -29,41 +29,44 @@ fn App(cx: Scope) -> Element {
         .and_then(|src| generate_image_url(src, *include_metadata.current()));
 
     cx.render(rsx! {
-        section {
-            class: "app",
-            h1 {
-                "Demo"
-            }
-            input {
-                "type": "text",
-                oninput: move |event| {
-                    if event.data.value.is_empty() {
-                        src.set(None);
-                    } else {
-                        src.set(Some(event.data.value.clone()));
-                    }
-                },
-                placeholder: "Enter math code here"
-            }
-        }
         div {
-            input {
-                "type": "checkbox",
-                "checked": "{include_metadata}",
-                onclick: move |_| include_metadata.set(!include_metadata),
-                id: "include_metadata"
+            id: "rm-app-container",
+            section {
+                class: "app",
+                h1 {
+                    "Demo"
+                }
+                input {
+                    "type": "text",
+                    oninput: move |event| {
+                        if event.data.value.is_empty() {
+                            src.set(None);
+                        } else {
+                            src.set(Some(event.data.value.clone()));
+                        }
+                    },
+                    placeholder: "Enter math code here"
+                }
             }
-            label {
-                "for": "include_metadata",
-                "Include source as metadata"
+            div {
+                input {
+                    "type": "checkbox",
+                    "checked": "{include_metadata}",
+                    onclick: move |_| include_metadata.set(!include_metadata),
+                    id: "include_metadata"
+                }
+                label {
+                    "for": "include_metadata",
+                    "Include source as metadata"
+                }
             }
-        }
-        div {
-            class: "output",
-            if let Some(url) = &image_url {
-                rsx! {
-                    img {
-                        src: "{url}"
+            div {
+                class: "output",
+                if let Some(url) = &image_url {
+                    rsx! {
+                        img {
+                            src: "{url}"
+                        }
                     }
                 }
             }
