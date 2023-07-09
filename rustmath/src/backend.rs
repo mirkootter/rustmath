@@ -1,13 +1,15 @@
 use crate::common::{self, construction::ConstructionPart, Color, Construction, FontStyle};
 use ttf_parser::{Face, GlyphId};
 
+mod opentype;
+
 #[derive(Default)]
-struct OutlineBuilder {
+pub struct OutlineBuilder {
     path_builder: tiny_skia::PathBuilder,
 }
 
-impl OutlineBuilder {
-    pub fn finish(self, scale: f32) -> tiny_skia::Path {
+impl opentype::OutlineBuilder<tiny_skia::Path> for OutlineBuilder {
+    fn finish(self, scale: f32) -> tiny_skia::Path {
         let ts = tiny_skia::Transform::from_scale(scale, scale);
         self.path_builder.finish().unwrap().transform(ts).unwrap()
     }
@@ -36,16 +38,16 @@ impl ttf_parser::OutlineBuilder for OutlineBuilder {
 }
 
 #[derive(Clone)]
-pub struct Glyph {
+pub struct Glyph<R: opentype::OpenTypeRenderer> {
     pub id: GlyphId,
     pub height: f32,
     pub depth: f32,
     pub advance: f32,
     pub italic_correction: f32,
-    pub path: tiny_skia::Path,
+    pub path: R::Path,
 }
 
-impl common::Glyph for Glyph {
+impl<R: opentype::OpenTypeRenderer> common::Glyph for Glyph<R> {
     fn height(&self) -> f32 {
         self.height
     }
@@ -67,7 +69,7 @@ impl common::Glyph for Glyph {
     }
 }
 
-impl Glyph {
+impl<R: opentype::OpenTypeRenderer> Glyph<R> {
     fn get_italic_correction(f: &Face, id: ttf_parser::GlyphId, scale: f32) -> Option<f32> {
         let value = f
             .tables()
@@ -80,11 +82,13 @@ impl Glyph {
     }
 
     fn new_from_id(f: &Face, id: ttf_parser::GlyphId, size: f32) -> Option<Self> {
+        use self::opentype::OutlineBuilder;
+
         let scale = size / 1000.0;
 
         let advance = f.glyph_hor_advance(id)? as f32 * scale;
 
-        let mut outline_builder = OutlineBuilder::default();
+        let mut outline_builder = R::OutlineBuilder::default();
         let bounds = f.outline_glyph(id, &mut outline_builder)?;
         let path = outline_builder.finish(scale);
 
@@ -106,11 +110,12 @@ impl Glyph {
     }
 }
 
-struct Font<'a> {
+struct Font<'a, R: opentype::OpenTypeRenderer> {
     face: ttf_parser::Face<'a>,
+    _phantom: std::marker::PhantomData<R>,
 }
 
-impl<'a> Font<'a> {
+impl<'a, R: opentype::OpenTypeRenderer> Font<'a, R> {
     fn size_for_style(&self, size: f32, style: FontStyle) -> f32 {
         match style {
             FontStyle::Display | FontStyle::Text => size,
@@ -144,7 +149,7 @@ impl<'a> Font<'a> {
         construction: ttf_parser::math::GlyphConstruction<'a>,
         size: f32,
         min_size: f32,
-    ) -> Option<Glyph> {
+    ) -> Option<Glyph<R>> {
         let min_size = (min_size * 1000.0 / size - 1e-3).round() as u16;
         for variant in construction.variants {
             if variant.advance_measurement >= min_size {
@@ -160,7 +165,7 @@ impl<'a> Font<'a> {
         min_overlap: f32,
         assembly: ttf_parser::math::GlyphAssembly<'a>,
         size: f32,
-    ) -> Construction<Glyph> {
+    ) -> Construction<Glyph<R>> {
         let scale = size / 1000.0;
         let parts = assembly
             .parts
@@ -177,13 +182,8 @@ impl<'a> Font<'a> {
     }
 }
 
-impl<'a> common::Font<Glyph> for Font<'a> {
-    fn get_glyph(
-        &self,
-        ch: char,
-        size: f32,
-        style: FontStyle,
-    ) -> Option<<FontBackend<'a> as common::FontBackend>::Glyph> {
+impl<'a, R: opentype::OpenTypeRenderer> common::Font<Glyph<R>> for Font<'a, R> {
+    fn get_glyph(&self, ch: char, size: f32, style: FontStyle) -> Option<Glyph<R>> {
         Glyph::new(&self.face, ch, self.size_for_style(size, style))
     }
 
@@ -193,7 +193,7 @@ impl<'a> common::Font<Glyph> for Font<'a> {
         size: f32,
         style: FontStyle,
         include_italic_correction: bool,
-    ) -> Option<<FontBackend<'a> as common::FontBackend>::Glyph> {
+    ) -> Option<Glyph<R>> {
         // TODO: Do not just get the second size, but the smallest
         // glyph which is larger than `display_operator_min_height`
 
@@ -233,7 +233,7 @@ impl<'a> common::Font<Glyph> for Font<'a> {
         size: f32,
         style: FontStyle,
         min_width: f32,
-    ) -> Option<<FontBackend<'a> as common::FontBackend>::Glyph> {
+    ) -> Option<Glyph<R>> {
         let glyph_id = self.face.glyph_index(ch)?;
         let construction = self
             .face
@@ -252,7 +252,7 @@ impl<'a> common::Font<Glyph> for Font<'a> {
         size: f32,
         style: FontStyle,
         min_height: f32,
-    ) -> Option<<FontBackend<'a> as common::FontBackend>::Glyph> {
+    ) -> Option<Glyph<R>> {
         let glyph_id = self.face.glyph_index(ch)?;
         let construction = self
             .face
@@ -270,7 +270,7 @@ impl<'a> common::Font<Glyph> for Font<'a> {
         ch: char,
         size: f32,
         style: FontStyle,
-    ) -> Option<common::Construction<<FontBackend<'a> as common::FontBackend>::Glyph>> {
+    ) -> Option<common::Construction<Glyph<R>>> {
         let glyph_id = self.face.glyph_index(ch)?;
         let variants = self.face.tables().math?.variants?;
         let min_overlap = variants.min_connector_overlap;
@@ -285,7 +285,7 @@ impl<'a> common::Font<Glyph> for Font<'a> {
         ch: char,
         size: f32,
         style: FontStyle,
-    ) -> Option<common::Construction<<FontBackend<'a> as common::FontBackend>::Glyph>> {
+    ) -> Option<common::Construction<Glyph<R>>> {
         let glyph_id = self.face.glyph_index(ch)?;
         let variants = self.face.tables().math?.variants?;
         let min_overlap = variants.min_connector_overlap;
@@ -392,24 +392,20 @@ impl<'a> common::Font<Glyph> for Font<'a> {
         }
     }
 
-    fn get_fallback_glyph(
-        &self,
-        size: f32,
-        style: FontStyle,
-    ) -> <FontBackend<'a> as common::FontBackend>::Glyph {
+    fn get_fallback_glyph(&self, size: f32, style: FontStyle) -> Glyph<R> {
         // TODO: Better character?
         Self::get_glyph(self, '?', size, style).unwrap()
     }
 }
 
 pub struct FontBackend<'a> {
-    font: Font<'a>,
+    font: Font<'a, TinySkiaRenderer>,
 }
 
 impl<'a> common::FontBackend for FontBackend<'a> {
-    type Glyph = Glyph;
+    type Glyph = Glyph<TinySkiaRenderer>;
 
-    fn get_font(&self, _family: common::Family) -> &dyn common::Font<Glyph> {
+    fn get_font(&self, _family: common::Family) -> &dyn common::Font<Self::Glyph> {
         &self.font
     }
 }
@@ -418,7 +414,10 @@ impl Default for FontBackend<'static> {
     fn default() -> Self {
         let face =
             ttf_parser::Face::parse(include_bytes!("../data/NewCMMath-Regular.otf"), 0).unwrap();
-        let font = Font { face };
+        let font = Font {
+            face,
+            _phantom: Default::default(),
+        };
         Self { font }
     }
 }
@@ -478,4 +477,12 @@ impl<'a> common::Renderer for Renderer<'a> {
         self.pixmap
             .fill_rect(rect, &tiny_skia::Paint::default(), ts, None);
     }
+}
+
+#[derive(Clone)]
+pub struct TinySkiaRenderer;
+
+impl opentype::OpenTypeRenderer for TinySkiaRenderer {
+    type Path = tiny_skia::Path;
+    type OutlineBuilder = OutlineBuilder;
 }

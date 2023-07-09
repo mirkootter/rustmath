@@ -9,7 +9,7 @@ mod tests;
 
 pub fn render_layout(
     fb: backend::FontBackend,
-    node: layout::Node<backend::Glyph>,
+    node: layout::Node<<backend::FontBackend<'_> as common::FontBackend>::Glyph>,
 ) -> Option<tiny_skia::Pixmap> {
     const DPI: f32 = 96.0;
     let scale = DPI / 72.0;
