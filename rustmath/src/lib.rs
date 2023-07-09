@@ -7,33 +7,27 @@ pub mod parser;
 #[cfg(test)]
 mod tests;
 
-pub fn render_layout(
-    fb: backend::FontBackend,
-    node: layout::Node<<backend::FontBackend<'_> as common::FontBackend>::Glyph>,
-) -> Option<tiny_skia::Pixmap> {
-    const DPI: f32 = 96.0;
-    let scale = DPI / 72.0;
+pub fn render_layout<R: backend::opentype::OpenTypeRenderer>(
+    fb: backend::FontBackend<R>,
+    node: layout::Node<<backend::FontBackend<'_, R> as common::FontBackend>::Glyph>,
+) -> Option<R::Image> {
     let x_padding = 10.0; // padding in pt
     let y_padding = 5.0; // padding in pt
 
     let width = node.advance(false) + 2.0 * x_padding;
     let height = node.height(false) + node.depth() + 2.0 * y_padding;
 
-    let mut pixmap = tiny_skia::Pixmap::new(
-        (width * scale).round() as u32,
-        (height * scale).round() as u32,
-    )
-    .unwrap();
-    let mut renderer = backend::Renderer::new(&mut pixmap, fb);
+    let mut canvas = R::new(width, height);
+    let mut renderer = backend::Renderer::new(&mut canvas, fb);
 
     node.render(&mut renderer, x_padding, y_padding + node.depth());
-    Some(pixmap)
+    Some(canvas.finish())
 }
 
 pub fn render_string(src: &str) -> Option<tiny_skia::Pixmap> {
     let list = parser::parse(src)?;
 
-    let fb = backend::FontBackend::default();
+    let fb = backend::FontBackend::<backend::TinySkiaRenderer>::default();
     let node = list.translate(&fb, 36.0, mathlist::Style::Display);
 
     render_layout(fb, node)

@@ -1,7 +1,7 @@
 use crate::common::{self, construction::ConstructionPart, Color, Construction, FontStyle};
 use ttf_parser::{Face, GlyphId};
 
-mod opentype;
+pub mod opentype;
 
 #[derive(Default)]
 pub struct OutlineBuilder {
@@ -398,19 +398,19 @@ impl<'a, R: opentype::OpenTypeRenderer> common::Font<Glyph<R>> for Font<'a, R> {
     }
 }
 
-pub struct FontBackend<'a> {
-    font: Font<'a, TinySkiaRenderer>,
+pub struct FontBackend<'a, R: opentype::OpenTypeRenderer> {
+    font: Font<'a, R>,
 }
 
-impl<'a> common::FontBackend for FontBackend<'a> {
-    type Glyph = Glyph<TinySkiaRenderer>;
+impl<'a, R: opentype::OpenTypeRenderer> common::FontBackend for FontBackend<'a, R> {
+    type Glyph = Glyph<R>;
 
     fn get_font(&self, _family: common::Family) -> &dyn common::Font<Self::Glyph> {
         &self.font
     }
 }
 
-impl Default for FontBackend<'static> {
+impl<R: opentype::OpenTypeRenderer> Default for FontBackend<'static, R> {
     fn default() -> Self {
         let face =
             ttf_parser::Face::parse(include_bytes!("../data/NewCMMath-Regular.otf"), 0).unwrap();
@@ -422,23 +422,23 @@ impl Default for FontBackend<'static> {
     }
 }
 
-pub struct Renderer<'a> {
-    pixmap: &'a mut tiny_skia::Pixmap,
-    backend: FontBackend<'a>,
+pub struct Renderer<'a, R: opentype::OpenTypeRenderer> {
+    renderer: &'a mut R,
+    backend: FontBackend<'a, R>,
 }
 
-impl<'a> Renderer<'a> {
-    pub fn new(pixmap: &'a mut tiny_skia::Pixmap, backend: FontBackend<'a>) -> Self {
-        Renderer { pixmap, backend }
+impl<'a, R: opentype::OpenTypeRenderer> Renderer<'a, R> {
+    pub fn new(renderer: &'a mut R, backend: FontBackend<'a, R>) -> Self {
+        Renderer { renderer, backend }
     }
 
-    pub fn font_backend(&self) -> &FontBackend<'a> {
+    pub fn font_backend(&self) -> &FontBackend<'a, R> {
         &self.backend
     }
 }
 
-impl<'a> common::Renderer for Renderer<'a> {
-    type FontBackend = FontBackend<'static>;
+impl<'a, R: opentype::OpenTypeRenderer> common::Renderer for Renderer<'a, R> {
+    type FontBackend = FontBackend<'static, R>;
 
     fn render_glyph(
         &mut self,
@@ -447,6 +447,38 @@ impl<'a> common::Renderer for Renderer<'a> {
         y0: f32,
         color: Color,
     ) {
+        self.renderer.render_path(x0, y0, &glyph.path, color);
+    }
+
+    fn render_box(&mut self, x0: f32, y0: f32, width: f32, height: f32) {
+        self.renderer.render_box(x0, y0, width, height);
+    }
+}
+
+#[derive(Clone)]
+pub struct TinySkiaRenderer {
+    pixmap: tiny_skia::Pixmap,
+}
+
+impl opentype::OpenTypeRenderer for TinySkiaRenderer {
+    type Path = tiny_skia::Path;
+    type OutlineBuilder = OutlineBuilder;
+
+    type Image = tiny_skia::Pixmap;
+
+    fn new(width: f32, height: f32) -> Self {
+        const DPI: f32 = 96.0;
+        let scale = DPI / 72.0;
+        let pixmap = tiny_skia::Pixmap::new(
+            (width * scale).round() as u32,
+            (height * scale).round() as u32,
+        )
+        .unwrap();
+
+        Self { pixmap }
+    }
+
+    fn render_path(&mut self, x0: f32, y0: f32, path: &Self::Path, color: crate::common::Color) {
         const DPI: f32 = 96.0;
         let scale = DPI / 72.0;
 
@@ -463,7 +495,7 @@ impl<'a> common::Renderer for Renderer<'a> {
             .post_scale(scale, -scale)
             .post_translate(0.0, self.pixmap.height() as f32);
         self.pixmap
-            .fill_path(&glyph.path, &paint, tiny_skia::FillRule::EvenOdd, ts, None);
+            .fill_path(path, &paint, tiny_skia::FillRule::EvenOdd, ts, None);
     }
 
     fn render_box(&mut self, x0: f32, y0: f32, width: f32, height: f32) {
@@ -477,12 +509,8 @@ impl<'a> common::Renderer for Renderer<'a> {
         self.pixmap
             .fill_rect(rect, &tiny_skia::Paint::default(), ts, None);
     }
-}
 
-#[derive(Clone)]
-pub struct TinySkiaRenderer;
-
-impl opentype::OpenTypeRenderer for TinySkiaRenderer {
-    type Path = tiny_skia::Path;
-    type OutlineBuilder = OutlineBuilder;
+    fn finish(self) -> Self::Image {
+        self.pixmap
+    }
 }
