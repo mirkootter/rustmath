@@ -20,3 +20,15 @@ image files, but they can be edited: Just drag&drop them into the web demo.
 by the CI. Therefore, the CI ensures that they match the current version.
 
 ![](ci/test-images/cauchy.png)
+
+![](ci/test-images/basel.png)
+
+![](ci/test-images/euler.png)
+
+![](ci/test-images/euler-lagrange.png)
+
+![](ci/test-images/gamma.png)
+
+![](ci/test-images/minimal-surface.png)
+
+![](ci/test-images/stokes.png)
