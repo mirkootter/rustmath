@@ -1,3 +1,5 @@
+use backend::raster::TinySkiaRenderer;
+
 pub mod backend;
 pub mod common;
 pub mod layout;
@@ -27,7 +29,7 @@ pub fn render_layout<R: backend::opentype::OpenTypeRenderer>(
 pub fn render_string(src: &str) -> Option<tiny_skia::Pixmap> {
     let list = parser::parse(src)?;
 
-    let fb = backend::FontBackend::<backend::TinySkiaRenderer>::default();
+    let fb = backend::FontBackend::<TinySkiaRenderer>::default();
     let node = list.translate(&fb, 36.0, mathlist::Style::Display);
 
     render_layout(fb, node)
