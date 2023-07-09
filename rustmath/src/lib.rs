@@ -10,8 +10,8 @@ pub mod parser;
 mod tests;
 
 pub fn render_layout<R: backend::opentype::OpenTypeRenderer>(
-    fb: backend::FontBackend<R>,
-    node: layout::Node<<backend::FontBackend<'_, R> as common::FontBackend>::Glyph>,
+    fb: backend::opentype::FontBackend<R>,
+    node: layout::Node<<backend::opentype::FontBackend<'_, R> as common::FontBackend>::Glyph>,
 ) -> Option<R::Image> {
     let x_padding = 10.0; // padding in pt
     let y_padding = 5.0; // padding in pt
@@ -20,7 +20,7 @@ pub fn render_layout<R: backend::opentype::OpenTypeRenderer>(
     let height = node.height(false) + node.depth() + 2.0 * y_padding;
 
     let mut canvas = R::new(width, height);
-    let mut renderer = backend::Renderer::new(&mut canvas, fb);
+    let mut renderer = backend::opentype::Renderer::new(&mut canvas, fb);
 
     node.render(&mut renderer, x_padding, y_padding + node.depth());
     Some(canvas.finish())
@@ -29,7 +29,7 @@ pub fn render_layout<R: backend::opentype::OpenTypeRenderer>(
 pub fn render_string(src: &str) -> Option<tiny_skia::Pixmap> {
     let list = parser::parse(src)?;
 
-    let fb = backend::FontBackend::<TinySkiaRenderer>::default();
+    let fb = backend::opentype::FontBackend::<TinySkiaRenderer>::default();
     let node = list.translate(&fb, 36.0, mathlist::Style::Display);
 
     render_layout(fb, node)
