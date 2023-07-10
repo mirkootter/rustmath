@@ -81,7 +81,7 @@ impl Inner {
             let src = src.clone();
             let task = async move {
                 if let Some(data) = read_uploaded_file(ev).await {
-                    if let Some(source) = rustmath::get_source_from_png_metadata(&data) {
+                    if let Some(source) = rustmath::get_source_from_metadata(&data) {
                         src.set(Some(source));
                     } else {
                         let window = web_sys::window().unwrap();

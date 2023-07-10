@@ -32,3 +32,5 @@ impl opentype::OpenTypeRenderer for SvgRenderer {
         self.image
     }
 }
+
+pub use xml::parse_metadata;

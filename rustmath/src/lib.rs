@@ -70,7 +70,11 @@ pub fn encode_png(src: &str, include_meta_data: bool) -> Option<Vec<u8>> {
     Some(result)
 }
 
-pub fn get_source_from_png_metadata(png: &[u8]) -> Option<String> {
+fn get_source_from_png_metadata(png: &[u8]) -> Option<String> {
+    if !png.starts_with(b"\x89PNG") {
+        return None;
+    }
+
     let decoder = png::Decoder::new(png);
     let reader = decoder.read_info().ok()?;
 
@@ -116,4 +120,37 @@ pub fn render_svg(src: &str, include_meta_data: bool) -> Option<String> {
     }
 
     Some(result)
+}
+
+fn get_source_from_svg_metadata(png: &[u8]) -> Option<String> {
+    let s = core::str::from_utf8(png).ok()?;
+    let metadata = backend::svg::parse_metadata(s)?;
+
+    let mut source = None;
+    let mut rustmath_source = None;
+
+    for (keyword, value) in metadata {
+        match keyword {
+            "source" => source = Some(value),
+            "rustmath_src" => rustmath_source = Some(value),
+            _ => {}
+        }
+    }
+
+    let source = source?;
+
+    if &source != "rustmath" {
+        return None;
+    }
+
+    rustmath_source
+}
+
+pub fn get_source_from_metadata(data: &[u8]) -> Option<String> {
+    let result = get_source_from_png_metadata(data);
+    if result.is_some() {
+        return result;
+    }
+
+    get_source_from_svg_metadata(data)
 }
