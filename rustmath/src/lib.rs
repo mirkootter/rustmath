@@ -1,4 +1,5 @@
 use backend::raster::TinySkiaRenderer;
+use backend::svg::SvgRenderer;
 
 pub mod backend;
 pub mod common;
@@ -96,4 +97,22 @@ pub fn get_source_from_png_metadata(png: &[u8]) -> Option<String> {
 pub fn save_png(src: &str, include_meta_data: bool, filename: &str) {
     let data = encode_png(src, include_meta_data).unwrap();
     std::fs::write(filename, data).unwrap();
+}
+
+pub fn render_svg(src: &str, include_meta_data: bool) -> Option<String> {
+    let list = parser::parse(src)?;
+
+    let fb = backend::opentype::FontBackend::<SvgRenderer>::default();
+    let node = list.translate(&fb, 36.0, mathlist::Style::Display);
+
+    let image = render_layout(fb, node)?;
+
+    let metadata = match include_meta_data {
+        true => src,
+        false => "",
+    };
+
+    let mut result = String::new();
+    image.write(metadata, &mut result).ok()?;
+    Some(result)
 }
