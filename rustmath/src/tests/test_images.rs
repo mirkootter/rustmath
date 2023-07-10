@@ -7,12 +7,8 @@ fn test_png_image(png: &[u8]) {
 
 #[test]
 fn test_images() {
-    test_png_image(include_bytes!("../../../ci/test-images/basel.png"));
-    test_png_image(include_bytes!("../../../ci/test-images/cauchy.png"));
-    test_png_image(include_bytes!("../../../ci/test-images/euler.png"));
-    test_png_image(include_bytes!("../../../ci/test-images/euler-lagrange.png"));
-    test_png_image(include_bytes!("../../../ci/test-images/gamma.png"));
-    test_png_image(include_bytes!("../../../ci/test-images/minimal_surface.png"));
-    test_png_image(include_bytes!("../../../ci/test-images/parse_error.png"));
-    test_png_image(include_bytes!("../../../ci/test-images/stokes.png"));
+    for (id, img) in super::TEST_IMAGES.into_iter().enumerate() {
+        eprintln!("Testing image {}", id);
+        test_png_image(img);
+    }
 }
