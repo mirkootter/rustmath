@@ -5,12 +5,22 @@ use dioxus::prelude::*;
 
 mod uploader;
 
-fn generate_image_url(src: &str, include_metadata: bool) -> Option<String> {
-    let image_data = rustmath::encode_png(src, include_metadata)?;
+fn generate_image_url(src: &str, include_metadata: bool, png: bool) -> Option<String> {
+    let (prefix, encoded) = if png {
+        let image_data = rustmath::encode_png(src, include_metadata)?;
+        let prefix = "data:image/png;base64,";
+        let encoded = base64::engine::general_purpose::STANDARD.encode(&image_data);
 
-    let prefix = "data:image/png;base64,".to_string();
-    let encoded = base64::engine::general_purpose::STANDARD.encode(&image_data);
-    Some(prefix + &encoded)
+        (prefix, encoded)
+    } else {
+        let image_data = rustmath::render_svg(src, include_metadata)?;
+        let prefix = "data:image/svg+xml;base64,";
+        let encoded = base64::engine::general_purpose::STANDARD.encode(&image_data);
+
+        (prefix, encoded)
+    };
+
+    Some(prefix.to_string() + &encoded)
 }
 
 fn main() {
@@ -21,12 +31,13 @@ fn main() {
 fn App(cx: Scope) -> Element {
     let src = use_state(cx, || None::<String>);
     let include_metadata = use_state(cx, || true);
+    let render_png = use_state(cx, || true);
 
     let uploader = uploader::use_uploader(cx, src);
 
-    let image_url = (*src.current())
-        .as_ref()
-        .and_then(|src| generate_image_url(src, *include_metadata.current()));
+    let image_url = (*src.current()).as_ref().and_then(|src| {
+        generate_image_url(src, *include_metadata.current(), *render_png.current())
+    });
 
     let input_value = match src.as_ref() {
         Some(src) => src,
@@ -68,6 +79,18 @@ fn App(cx: Scope) -> Element {
                 label {
                     "for": "include_metadata",
                     "Include source as metadata"
+                }
+            }
+            div {
+                input {
+                    "type": "checkbox",
+                    "checked": "{render_png}",
+                    onclick: move |_| render_png.set(!render_png),
+                    id: "render_png"
+                }
+                label {
+                    "for": "render_png",
+                    "Render to PNG instead of SVG"
                 }
             }
             div {
