@@ -188,14 +188,21 @@ impl Image {
         ));
     }
 
-    pub fn write(&self, _metadata: &str, out: &mut impl core::fmt::Write) -> core::fmt::Result {
-        // TODO: Metadata
-
+    pub fn write(
+        &self,
+        metadata: &[(&str, &str)],
+        out: &mut impl core::fmt::Write,
+    ) -> core::fmt::Result {
         writeln!(
             out,
             "<svg version=\"1.1\" width=\"{}pt\" height=\"{}pt\" viewBox=\"0 0 {} {}\" xmlns=\"http://www.w3.org/2000/svg\">",
             self.width, self.height, self.width, self.height
         )?;
+        for (meta_id, meta_value) in metadata {
+            write!(out, "  <metadata id=\"{}\">", meta_id)?;
+            super::xml::write_escaped_string(meta_value, out)?;
+            writeln!(out, "</metadata>")?;
+        }
         writeln!(
             out,
             "  <g transform=\"translate(0.0,{}) scale(1.0,-1.0)\">",

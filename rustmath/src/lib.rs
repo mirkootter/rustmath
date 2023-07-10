@@ -107,12 +107,13 @@ pub fn render_svg(src: &str, include_meta_data: bool) -> Option<String> {
 
     let image = render_layout(fb, node)?;
 
-    let metadata = match include_meta_data {
-        true => src,
-        false => "",
-    };
-
     let mut result = String::new();
-    image.write(metadata, &mut result).ok()?;
+    if include_meta_data {
+        let metadata: &[(&str, &str)] = &[("source", "rustmath"), ("rustmath_src", src)];
+        image.write(metadata, &mut result).ok()?;
+    } else {
+        image.write(&[], &mut result).ok()?;
+    }
+
     Some(result)
 }

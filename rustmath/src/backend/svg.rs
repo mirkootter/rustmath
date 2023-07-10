@@ -2,6 +2,7 @@ use super::opentype;
 use crate::common::Color;
 
 mod svg_core;
+mod xml;
 
 #[derive(Clone)]
 pub struct SvgRenderer {
