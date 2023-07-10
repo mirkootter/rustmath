@@ -97,6 +97,27 @@ impl core::fmt::Display for Translation {
 }
 
 #[derive(Clone)]
+struct Color(&'static str);
+
+impl core::fmt::Display for Color {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        if self.0.is_empty() {
+            return Ok(());
+        }
+        write!(f, " fill=\"{}\"", self.0)
+    }
+}
+
+impl From<crate::common::Color> for Color {
+    fn from(value: crate::common::Color) -> Self {
+        match value {
+            crate::common::Color::Normal => Self(""),
+            crate::common::Color::Error => Self("red"),
+        }
+    }
+}
+
+#[derive(Clone)]
 enum Element {
     Rect {
         x0: f32,
@@ -104,7 +125,7 @@ enum Element {
         width: f32,
         height: f32,
     },
-    Path(Translation, String),
+    Path(Translation, String, Color),
 }
 
 impl Element {
@@ -120,8 +141,8 @@ impl Element {
                 "    <rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" />",
                 x0, y0, width, height
             ),
-            Element::Path(transform, data) => {
-                writeln!(out, "    <path{} d=\"{}\" />", transform, data)
+            Element::Path(transform, data, color) => {
+                writeln!(out, "    <path{}{} d=\"{}\" />", transform, color, data)
             }
         }
     }
@@ -153,9 +174,18 @@ impl Image {
         })
     }
 
-    pub fn draw_path(&mut self, translate_x: f32, translate_y: f32, data: String) {
-        self.elements
-            .push(Element::Path(Translation(translate_x, translate_y), data));
+    pub fn draw_path(
+        &mut self,
+        translate_x: f32,
+        translate_y: f32,
+        data: String,
+        color: crate::common::Color,
+    ) {
+        self.elements.push(Element::Path(
+            Translation(translate_x, translate_y),
+            data,
+            color.into(),
+        ));
     }
 
     pub fn write(&self, _metadata: &str, out: &mut impl core::fmt::Write) -> core::fmt::Result {

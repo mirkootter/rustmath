@@ -19,10 +19,8 @@ impl opentype::OpenTypeRenderer for SvgRenderer {
         Self { image }
     }
 
-    fn render_path(&mut self, x0: f32, y0: f32, path: &Self::Path, _color: Color) {
-        // TODO: Color
-
-        self.image.draw_path(x0, y0, path.clone());
+    fn render_path(&mut self, x0: f32, y0: f32, path: &Self::Path, color: Color) {
+        self.image.draw_path(x0, y0, path.clone(), color);
     }
 
     fn render_box(&mut self, x0: f32, y0: f32, width: f32, height: f32) {
