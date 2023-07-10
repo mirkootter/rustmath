@@ -1,3 +1,6 @@
+use backend::raster::TinySkiaRenderer;
+use backend::svg::SvgRenderer;
+
 pub mod backend;
 pub mod common;
 pub mod layout;
@@ -7,33 +10,27 @@ pub mod parser;
 #[cfg(test)]
 mod tests;
 
-pub fn render_layout(
-    fb: backend::FontBackend,
-    node: layout::Node<backend::Glyph>,
-) -> Option<tiny_skia::Pixmap> {
-    const DPI: f32 = 96.0;
-    let scale = DPI / 72.0;
+pub fn render_layout<R: backend::opentype::OpenTypeRenderer>(
+    fb: backend::opentype::FontBackend<R>,
+    node: layout::Node<<backend::opentype::FontBackend<'_, R> as common::FontBackend>::Glyph>,
+) -> Option<R::Image> {
     let x_padding = 10.0; // padding in pt
     let y_padding = 5.0; // padding in pt
 
     let width = node.advance(false) + 2.0 * x_padding;
     let height = node.height(false) + node.depth() + 2.0 * y_padding;
 
-    let mut pixmap = tiny_skia::Pixmap::new(
-        (width * scale).round() as u32,
-        (height * scale).round() as u32,
-    )
-    .unwrap();
-    let mut renderer = backend::Renderer::new(&mut pixmap, fb);
+    let mut canvas = R::new(width, height);
+    let mut renderer = backend::opentype::Renderer::new(&mut canvas, fb);
 
     node.render(&mut renderer, x_padding, y_padding + node.depth());
-    Some(pixmap)
+    Some(canvas.finish())
 }
 
 pub fn render_string(src: &str) -> Option<tiny_skia::Pixmap> {
     let list = parser::parse(src)?;
 
-    let fb = backend::FontBackend::default();
+    let fb = backend::opentype::FontBackend::<TinySkiaRenderer>::default();
     let node = list.translate(&fb, 36.0, mathlist::Style::Display);
 
     render_layout(fb, node)
@@ -73,7 +70,11 @@ pub fn encode_png(src: &str, include_meta_data: bool) -> Option<Vec<u8>> {
     Some(result)
 }
 
-pub fn get_source_from_png_metadata(png: &[u8]) -> Option<String> {
+fn get_source_from_png_metadata(png: &[u8]) -> Option<String> {
+    if !png.starts_with(b"\x89PNG") {
+        return None;
+    }
+
     let decoder = png::Decoder::new(png);
     let reader = decoder.read_info().ok()?;
 
@@ -100,4 +101,56 @@ pub fn get_source_from_png_metadata(png: &[u8]) -> Option<String> {
 pub fn save_png(src: &str, include_meta_data: bool, filename: &str) {
     let data = encode_png(src, include_meta_data).unwrap();
     std::fs::write(filename, data).unwrap();
+}
+
+pub fn render_svg(src: &str, include_meta_data: bool) -> Option<String> {
+    let list = parser::parse(src)?;
+
+    let fb = backend::opentype::FontBackend::<SvgRenderer>::default();
+    let node = list.translate(&fb, 36.0, mathlist::Style::Display);
+
+    let image = render_layout(fb, node)?;
+
+    let mut result = String::new();
+    if include_meta_data {
+        let metadata: &[(&str, &str)] = &[("source", "rustmath"), ("rustmath_src", src)];
+        image.write(metadata, &mut result).ok()?;
+    } else {
+        image.write(&[], &mut result).ok()?;
+    }
+
+    Some(result)
+}
+
+fn get_source_from_svg_metadata(png: &[u8]) -> Option<String> {
+    let s = core::str::from_utf8(png).ok()?;
+    let metadata = backend::svg::parse_metadata(s)?;
+
+    let mut source = None;
+    let mut rustmath_source = None;
+
+    for (keyword, value) in metadata {
+        match keyword {
+            "source" => source = Some(value),
+            "rustmath_src" => rustmath_source = Some(value),
+            _ => {}
+        }
+    }
+
+    let source = source?;
+
+    if &source != "rustmath" {
+        return None;
+    }
+
+    rustmath_source
+}
+
+pub fn get_source_from_metadata(data: &[u8]) -> Option<String> {
+    let result = get_source_from_png_metadata(data);
+    if result.is_some() {
+        return result;
+    }
+
+    get_source_from_svg_metadata(data)
 }
