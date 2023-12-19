@@ -153,10 +153,10 @@ fn get_source_from_svg_metadata(png: &[u8]) -> Option<String> {
     rustmath_source
 }
 
-pub fn get_source_from_metadata(data: &[u8]) -> Option<String> {
+pub fn get_source_from_metadata(_data: &[u8]) -> Option<String> {
     #[cfg(feature = "png")]
     {
-        let result = get_source_from_png_metadata(data);
+        let result = get_source_from_png_metadata(_data);
         if result.is_some() {
             return result;
         }
@@ -164,7 +164,7 @@ pub fn get_source_from_metadata(data: &[u8]) -> Option<String> {
 
     #[cfg(feature = "svg")]
     {
-        let result = get_source_from_svg_metadata(data);
+        let result = get_source_from_svg_metadata(_data);
         if result.is_some() {
             return result;
         }
