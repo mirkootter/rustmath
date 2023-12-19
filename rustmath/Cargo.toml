@@ -6,7 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["png", "svg"]
+default = ["embedded-font", "png", "svg"]
+embedded-font = []
 png = ["dep:png", "tiny-skia"]
 svg = []
 

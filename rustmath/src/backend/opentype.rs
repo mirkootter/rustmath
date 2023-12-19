@@ -391,15 +391,21 @@ impl<'a, R: OpenTypeRenderer> common::FontBackend for FontBackend<'a, R> {
     }
 }
 
-impl<R: OpenTypeRenderer> Default for FontBackend<'static, R> {
-    fn default() -> Self {
-        let face =
-            ttf_parser::Face::parse(include_bytes!("../../data/NewCMMath-Regular.otf"), 0).unwrap();
+impl<'a, R: OpenTypeRenderer> FontBackend<'a, R> {
+    pub fn new_from_font_data(data: &'a [u8]) -> Option<Self> {
+        let face = ttf_parser::Face::parse(data, 0).ok()?;
         let font = Font {
             face,
             _phantom: Default::default(),
         };
-        Self { font }
+        Some(Self { font })
+    }
+}
+
+#[cfg(feature = "embedded-font")]
+impl<R: OpenTypeRenderer> Default for FontBackend<'static, R> {
+    fn default() -> Self {
+        Self::new_from_font_data(include_bytes!("../../data/NewCMMath-Regular.otf")).unwrap()
     }
 }
 
