@@ -1,4 +1,3 @@
-use backend::raster::TinySkiaRenderer;
 use backend::svg::SvgRenderer;
 
 pub mod backend;
@@ -27,7 +26,10 @@ pub fn render_layout<R: backend::opentype::OpenTypeRenderer>(
     Some(canvas.finish())
 }
 
+#[cfg(feature = "tiny-skia")]
 pub fn render_string(src: &str) -> Option<tiny_skia::Pixmap> {
+    use backend::raster::TinySkiaRenderer;
+
     let list = parser::parse(src)?;
 
     let fb = backend::opentype::FontBackend::<TinySkiaRenderer>::default();
@@ -36,6 +38,7 @@ pub fn render_string(src: &str) -> Option<tiny_skia::Pixmap> {
     render_layout(fb, node)
 }
 
+#[cfg(feature = "png")]
 pub fn encode_png(src: &str, include_meta_data: bool) -> Option<Vec<u8>> {
     let pixmap = render_string(src)?;
 
@@ -70,6 +73,7 @@ pub fn encode_png(src: &str, include_meta_data: bool) -> Option<Vec<u8>> {
     Some(result)
 }
 
+#[cfg(feature = "png")]
 fn get_source_from_png_metadata(png: &[u8]) -> Option<String> {
     if !png.starts_with(b"\x89PNG") {
         return None;
@@ -98,6 +102,7 @@ fn get_source_from_png_metadata(png: &[u8]) -> Option<String> {
     rustmath_source
 }
 
+#[cfg(feature = "png")]
 pub fn save_png(src: &str, include_meta_data: bool, filename: &str) {
     let data = encode_png(src, include_meta_data).unwrap();
     std::fs::write(filename, data).unwrap();
@@ -147,9 +152,12 @@ fn get_source_from_svg_metadata(png: &[u8]) -> Option<String> {
 }
 
 pub fn get_source_from_metadata(data: &[u8]) -> Option<String> {
-    let result = get_source_from_png_metadata(data);
-    if result.is_some() {
-        return result;
+    #[cfg(feature = "png")]
+    {
+        let result = get_source_from_png_metadata(data);
+        if result.is_some() {
+            return result;
+        }
     }
 
     get_source_from_svg_metadata(data)
