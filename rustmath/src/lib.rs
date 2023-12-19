@@ -1,5 +1,3 @@
-use backend::svg::SvgRenderer;
-
 pub mod backend;
 pub mod common;
 pub mod layout;
@@ -108,7 +106,10 @@ pub fn save_png(src: &str, include_meta_data: bool, filename: &str) {
     std::fs::write(filename, data).unwrap();
 }
 
+#[cfg(feature = "svg")]
 pub fn render_svg(src: &str, include_meta_data: bool) -> Option<String> {
+    use backend::svg::SvgRenderer;
+
     let list = parser::parse(src)?;
 
     let fb = backend::opentype::FontBackend::<SvgRenderer>::default();
@@ -127,6 +128,7 @@ pub fn render_svg(src: &str, include_meta_data: bool) -> Option<String> {
     Some(result)
 }
 
+#[cfg(feature = "svg")]
 fn get_source_from_svg_metadata(png: &[u8]) -> Option<String> {
     let s = core::str::from_utf8(png).ok()?;
     let metadata = backend::svg::parse_metadata(s)?;
@@ -160,5 +162,13 @@ pub fn get_source_from_metadata(data: &[u8]) -> Option<String> {
         }
     }
 
-    get_source_from_svg_metadata(data)
+    #[cfg(feature = "svg")]
+    {
+        let result = get_source_from_svg_metadata(data);
+        if result.is_some() {
+            return result;
+        }
+    }
+
+    None
 }
