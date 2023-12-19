@@ -1,3 +1,6 @@
+// Reexport ttf_parser
+pub use ttf_parser;
+
 use crate::common::{self, construction::ConstructionPart, Color, Construction, FontStyle};
 use ttf_parser::{Face, GlyphId};
 
