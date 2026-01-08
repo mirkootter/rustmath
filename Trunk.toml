@@ -1,0 +1,7 @@
+[build]
+public_url = "/math-demo"
+target = "demo/index.html"
+
+[serve]
+addresses = ["127.0.0.1"]
+port = 3000

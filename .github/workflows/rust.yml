@@ -25,7 +25,7 @@ jobs:
     - name: Test
       run: cargo test
     - name: Build
-      run: trunk build --release --public-url /math-demo demo/index.html
+      run: trunk build --release
     - name: setup ssh keys
       if: github.ref == 'refs/heads/main'
       uses: webfactory/ssh-agent@v0.6.0
