@@ -100,7 +100,7 @@ impl<'a, G: Glyph> Iterator for SizedPartIterator<'a, G> {
 impl<'a, G: Glyph> ExactSizeIterator for PartIterator<'a, G> {}
 
 impl<G: Glyph> Construction<G> {
-    pub fn iter_parts(&self, extenders: u32) -> PartIterator<G> {
+    pub fn iter_parts(&self, extenders: u32) -> PartIterator<'_, G> {
         PartIterator {
             iter: self.parts.iter(),
             extenders,
@@ -109,7 +109,7 @@ impl<G: Glyph> Construction<G> {
         }
     }
 
-    fn overlapping(&self, extenders: u32) -> OverlappingPartIterator<G> {
+    fn overlapping(&self, extenders: u32) -> OverlappingPartIterator<'_, G> {
         let iter = self.iter_parts(extenders);
         OverlappingPartIterator {
             iter,
@@ -118,7 +118,7 @@ impl<G: Glyph> Construction<G> {
         }
     }
 
-    pub fn construct(&self, min_size: f32) -> (f32, SizedPartIterator<G>) {
+    pub fn construct(&self, min_size: f32) -> (f32, SizedPartIterator<'_, G>) {
         for extenders in 0u32..100000u32 {
             // We should not need more extenders than this
             let (min, max, len) = self.size_bounds(extenders);

@@ -30,7 +30,7 @@ pub fn parse_metadata<'a>(s: &'a str) -> Option<Vec<(&'a str, String)>> {
 
 type ParseResult<'a, T> = nom::IResult<&'a str, T>;
 
-fn whitespace(src: &str) -> ParseResult<()> {
+fn whitespace(src: &str) -> ParseResult<'_, ()> {
     use nom::InputTakeAtPosition;
     let (src, _) = src.split_at_position_complete(|ch| !ch.is_whitespace())?;
     Ok((src, ()))
@@ -53,11 +53,11 @@ fn parse_attr<'a>(src: &'a str) -> ParseResult<'a, (&'a str, &'a str)> {
     Ok((src, (id, value)))
 }
 
-fn skip_attrs(src: &str) -> ParseResult<()> {
+fn skip_attrs(src: &str) -> ParseResult<'_, ()> {
     nom::multi::fold_many0(parse_attr, || (), |_, _| ())(src)
 }
 
-fn parse_escaped_string(src: &str) -> ParseResult<String> {
+fn parse_escaped_string(src: &str) -> ParseResult<'_, String> {
     let parse_number = nom::combinator::map_opt(nom::character::complete::digit1, |s: &str| {
         s.parse::<u8>().ok()
     });

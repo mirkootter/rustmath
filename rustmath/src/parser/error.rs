@@ -29,6 +29,6 @@ impl<I> nom::error::ParseError<I> for Error<I> {
     }
 }
 
-pub fn make_recoverable_error<T>(input: &str, kind: ErrorKind) -> super::ParseResult<T> {
+pub fn make_recoverable_error<T>(input: &str, kind: ErrorKind) -> super::ParseResult<'_, T> {
     Err(nom::Err::Error(Error { input, kind }))
 }
