@@ -409,22 +409,24 @@ impl<R: OpenTypeRenderer> Default for FontBackend<'static, R> {
     }
 }
 
-pub struct Renderer<'a, R: OpenTypeRenderer> {
+pub struct Renderer<'a, R: OpenTypeRenderer, FB> {
     renderer: &'a mut R,
-    backend: FontBackend<'a, R>,
+    backend: FB,
 }
 
-impl<'a, R: OpenTypeRenderer> Renderer<'a, R> {
-    pub fn new(renderer: &'a mut R, backend: FontBackend<'a, R>) -> Self {
+impl<'a, R: OpenTypeRenderer, FB> Renderer<'a, R, FB> {
+    pub fn new(renderer: &'a mut R, backend: FB) -> Self {
         Renderer { renderer, backend }
     }
 
-    pub fn font_backend(&self) -> &FontBackend<'a, R> {
+    pub fn font_backend(&self) -> &FB {
         &self.backend
     }
 }
 
-impl<'a, R: OpenTypeRenderer> common::Renderer for Renderer<'a, R> {
+impl<'a, R: OpenTypeRenderer, FB: std::borrow::Borrow<FontBackend<'a, R>>> common::Renderer
+    for Renderer<'a, R, FB>
+{
     type FontBackend = FontBackend<'static, R>;
 
     fn render_glyph(
