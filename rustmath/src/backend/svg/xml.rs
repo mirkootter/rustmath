@@ -36,7 +36,7 @@ fn whitespace(src: &str) -> ParseResult<()> {
     Ok((src, ()))
 }
 
-fn parse_attr<'a>(src: &'a str) -> ParseResult<(&'a str, &'a str)> {
+fn parse_attr<'a>(src: &'a str) -> ParseResult<'a, (&'a str, &'a str)> {
     let (src, ()) = whitespace(src)?;
     let (src, id) = nom::character::complete::alpha1(src)?;
     let (src, _) =

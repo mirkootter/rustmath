@@ -1,12 +1,12 @@
 pub enum ErrorKind {
-    FromNom(nom::error::ErrorKind),
+    NomError,
     InvalidDelimiter,
     UnsupportedCommand,
 }
 
 impl From<nom::error::ErrorKind> for ErrorKind {
-    fn from(error_kind: nom::error::ErrorKind) -> Self {
-        Self::FromNom(error_kind)
+    fn from(_error_kind: nom::error::ErrorKind) -> Self {
+        Self::NomError
     }
 }
 
